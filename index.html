@@ -1,0 +1,4325 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PUCE — Mapa de Puntos Críticos Zona 4 Loja</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>window.CESIUM_BASE_URL = 'https://unpkg.com/cesium@1.120.0/Build/Cesium/';</script>
+<script src="https://unpkg.com/cesium@1.120.0/Build/Cesium/Cesium.js"></script>
+<link href="https://unpkg.com/cesium@1.120.0/Build/Cesium/Widgets/widgets.css" rel="stylesheet" />
+<style>
+* { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI', Tahoma, sans-serif; }
+body { display:flex; height:100vh; overflow:hidden; background:#f0f2f5; }
+#sidebar { width:400px; min-width:400px; background:#fff; color:#333; display:flex; flex-direction:column; border-right:1px solid #e0e0e0; z-index:1000; box-shadow:2px 0 8px rgba(0,0,0,0.06); }
+#sidebar-header { padding:16px 20px; background:#fff; border-bottom:1px solid #e0e0e0; }
+#brand { display:flex; justify-content:center; margin-bottom:12px; }
+#brand-logo { display:flex; align-items:center; justify-content:center; gap:14px; }
+#brand-logo img { width:58px; height:58px; object-fit:contain; display:inline-block; }
+#brand-logo span { font-size:34px; font-weight:700; letter-spacing:5px; color:#444; }
+#author { font-size:13px; color:#555; font-weight:500; margin-bottom:3px; text-align:left; }
+#disclaimer { font-size:11px; color:#999; font-style:italic; text-align:left; }
+#coord-list { flex:1; overflow-y:auto; padding:10px; }
+.coord-item { display:flex; align-items:center; gap:10px; padding:10px 12px; margin-bottom:6px; background:#fff; border-radius:8px; cursor:pointer; transition:all .2s; border:1px solid #e8e8e8; box-shadow:0 1px 3px rgba(0,0,0,.04); }
+.coord-item:hover { background:#fff8f0; border-color:#f57c00; box-shadow:0 2px 8px rgba(245,124,0,.12); }
+.coord-item .dot { width:10px; height:10px; border-radius:50%; background:#f57c00; flex-shrink:0; }
+.coord-item .info { flex:1; min-width:0; }
+.coord-item .name { font-size:13px; font-weight:500; color:#1a1a2e; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.coord-item .coords { font-size:11px; color:#999; }
+#sidebar-footer { padding:10px 16px; border-top:1px solid #e8e8e8; font-size:11px; color:#999; text-align:center; background:#fafafa; }
+#sidebar-footer a { color:#f57c00; text-decoration:none; }
+#btn-home { padding:12px 16px; border:none; background:#fff; color:#666; cursor:pointer; font-size:18px; font-weight:600; border-radius:8px; box-shadow:0 2px 12px rgba(0,0,0,.15); }
+#btn-home:hover { background:#fff8f0; color:#f57c00; }
+#btn-sidebar-home { display:none; width:calc(100% - 20px); margin:8px auto 0; padding:8px 12px; border:none; background:#f57c00; color:#fff; cursor:pointer; font-size:13px; font-weight:600; border-radius:8px; }
+.view-3d-active #btn-sidebar-home { display:block; }
+#btn-info { position:absolute; top:150px; right:20px; z-index:999; width:40px; height:40px; border:none; background:#fff; color:#888; cursor:pointer; font-size:16px; font-weight:700; border-radius:50%; box-shadow:0 2px 10px rgba(0,0,0,.1); display:flex; align-items:center; justify-content:center; }
+#info-panel { position:absolute; top:0; right:-420px; width:400px; height:100%; z-index:998; background:#fff; box-shadow:-4px 0 30px rgba(0,0,0,.08); transition:right .35s ease; display:flex; flex-direction:column; overflow-y:auto; }
+#info-panel.open { right:0; }
+#info-panel-header { padding:28px 28px 16px; border-bottom:1px solid #eee; display:flex; align-items:center; justify-content:space-between; }
+#info-panel-header h3 { font-size:15px; color:#222; font-weight:600; margin:0; letter-spacing:2px; text-transform:uppercase; }
+#info-panel-close { background:none; border:none; font-size:18px; color:#bbb; cursor:pointer; }
+#info-panel-body { padding:20px 28px 28px; font-size:12.5px; color:#555; line-height:1.8; }
+#info-panel-body h4 { font-size:10.5px; font-weight:700; color:#999; margin:22px 0 6px; letter-spacing:1.5px; text-transform:uppercase; border-bottom:1px solid #f0f0f0; padding-bottom:4px; }
+#info-panel-body .disclaimer { background:#fafafa; border-left:2px solid #ccc; padding:14px 16px; font-size:11.5px; color:#777; margin-top:20px; line-height:1.7; }
+#view-container { flex:1; position:relative; }
+.view { position:absolute; top:0; left:0; width:100%; height:100%; display:none; }
+.view.active { display:block; }
+#view-toggle { position:absolute; top:80px; right:20px; z-index:1000; display:flex; gap:4px; transition:right .35s ease; }
+#view-toggle.shifted { right:420px; }
+#view-toggle button { padding:12px 22px; border:none; background:#fff; color:#666; cursor:pointer; font-size:18px; font-weight:600; border-radius:8px; box-shadow:0 2px 12px rgba(0,0,0,.15); }
+#view-toggle button.active { background:#f57c00; color:#fff; }
+.info-table { width:100%; border-collapse:collapse; margin-top:8px; font-size:11px; }
+.info-table th { background:#f57c00; color:#fff; padding:4px 6px; text-align:left; font-weight:600; white-space:nowrap; }
+.info-table td { padding:3px 6px; border-bottom:1px solid #e8e8e8; color:#444; white-space:nowrap; }
+.info-table tr:nth-child(even) td { background:#fffaf2; }
+.popup-content { max-height:340px; overflow-y:auto; }
+.popup-field { font-size:11px; color:#444; margin-top:8px; line-height:1.6; }
+#popup-3d { display:none; position:absolute; bottom:30px; left:50%; transform:translateX(-50%); z-index:1002; background:#fff; border-radius:12px; box-shadow:0 4px 24px rgba(0,0,0,.2); max-width:480px; padding:8px; overflow:hidden; }
+#music-btn { background:none; border:none; cursor:pointer; font-size:14px; color:#999; padding:2px 4px; border-radius:4px; }
+#menu-btn { display:none; position:fixed; top:12px; left:12px; z-index:3000; width:40px; height:40px; border:none; background:#fff; color:#333; cursor:pointer; font-size:22px; border-radius:50%; box-shadow:0 2px 10px rgba(0,0,0,.15); align-items:center; justify-content:center; }
+#sidebar-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,.4); z-index:1999; }
+#sidebar-overlay.open { display:block; }
+@media (max-width:768px) {
+body { flex-direction:column; }
+#sidebar { position:fixed; top:0; left:0; width:85vw; max-width:360px; height:100%; z-index:2000; transform:translateX(-100%); transition:transform .3s ease; box-shadow:4px 0 20px rgba(0,0,0,.15); }
+#sidebar.open { transform:translateX(0); }
+#menu-btn { display:flex; }
+#view-toggle { top:12px; right:12px; }
+#view-toggle button { padding:8px 14px; font-size:15px; }
+#btn-info { top:70px; right:12px; width:36px; height:36px; }
+#info-panel { width:100%; right:-100%; }
+#view-toggle.shifted { right:12px; }
+#popup-3d { max-width:90vw; bottom:12px; }
+#brand-logo img { width:46px; height:46px; }
+#brand-logo span { font-size:28px; }
+}
+</style>
+</head>
+<body>
+<div id="sidebar-overlay" onclick="toggleSidebar()"></div>
+<button id="menu-btn" onclick="toggleSidebar()">☰</button>
+<div id="sidebar" class="view-3d-active">
+<div id="sidebar-header">
+    <div id="brand">
+        <div id="brand-logo">
+            <img src="data:image/png;base64,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" alt="Logo PUCE">
+            <span>PUCE</span>
+        </div>
+    </div>
+    <div id="author">Samantha Mantilla y Mateo Valverde</div>
+    <div id="disclaimer">Mapa de Puntos Críticos Zona 4 Loja</div>
+</div>
+    <button id="btn-sidebar-home" onclick="homeView()">🏠 Vista Global</button>
+    <div id="coord-list"></div>
+    <div id="sidebar-footer">
+        <div style="display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;">
+            <span>OpenStreetMap 2D / 3D &bull; Datos &copy; <a href="https://openstreetmap.org/copyright" target="_blank">OpenStreetMap</a></span>
+            <span style="color:#bbb;">&bull;</span>
+            <span>🎵 <a href="https://www.scottbuckley.com.au/library/filaments/" target="_blank" style="color:#999;text-decoration:none;">Scott Buckley</a></span>
+            <button id="music-btn" onclick="toggleMusic()" title="Música de fondo">🔇</button>
+        </div>
+    </div>
+</div>
+<div id="view-container">
+    <div id="view-toggle">
+        <button id="btn-2d" onclick="switchView('2d')">🗺️ 2D</button>
+        <button id="btn-3d" class="active" onclick="switchView('3d')">🌐 3D</button>
+        <button id="btn-home" onclick="homeView()">🏠</button>
+    </div>
+    <div id="map-2d" class="view"></div>
+    <div id="map-3d" class="view active"></div>
+    <div id="popup-3d"></div>
+    <button id="btn-info" onclick="toggleInfo()">ℹ️</button>
+    <div id="info-panel">
+        <div id="info-panel-header">
+            <h3>Información</h3>
+            <button id="info-panel-close" onclick="toggleInfo()">✕</button>
+        </div>
+        <div id="info-panel-body">
+            <div style="text-align:center;margin-bottom:16px;">
+                <img src="data:image/png;base64,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" style="height:58px;width:auto;display:inline-block;" alt="Logo PUCE">
+            </div>
+            <h4>Objetivo</h4>
+            <p>Visualizar los puntos críticos viales de la Zona 4 del cantón Loja mediante un mapa interactivo 2D y 3D.</p>
+            <h4>Autores</h4>
+            <p><strong>Samantha Mantilla y Mateo Valverde</strong></p>
+            <h4>Uso</h4>
+            <p>Proyecto académico para la visualización de puntos críticos, coordenadas y atributos viales levantados en campo.</p>
+            <h4>Datos visualizados</h4>
+            <p>Código, coordenadas, capa de rodadura, severidad, drenaje y enlaces asociados a cada punto.</p>
+            <div class="disclaimer"><strong>PUCE</strong><br>Mapa de Puntos Críticos Zona 4 Loja.</div>
+        </div>
+    </div>
+</div>
+<script>
+var COORDS_STORAGE_KEY = 'osm_coords';
+var COORDS_HASH_KEY = 'osm_coords_hash';
+var defaultCoords = [
+  {
+    "name": "LLOJA61015",
+    "codigo": "LLOJA61015",
+    "lat": -4.30821701,
+    "lon": -79.24635473,
+    "link": "https://www.google.com/maps?q=-4.30821701,-79.24635473",
+    "image": "https://www.google.com/maps?q=-4.30821701,-79.24635473",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA61001",
+    "codigo": "LLOJA61001",
+    "lat": -4.29062804,
+    "lon": -79.25977907,
+    "link": "https://www.google.com/maps?q=-4.29062804,-79.25977907",
+    "image": "https://www.google.com/maps?q=-4.29062804,-79.25977907",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA61001",
+    "codigo": "LLOJA61001",
+    "lat": -4.27889941,
+    "lon": -79.26050866,
+    "link": "https://www.google.com/maps?q=-4.27889941,-79.26050866",
+    "image": "https://www.google.com/maps?q=-4.27889941,-79.26050866",
+    "capa_rod": "Afirmado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA61001",
+    "codigo": "LLOJA61001",
+    "lat": -4.27823366,
+    "lon": -79.26116781,
+    "link": "https://www.google.com/maps?q=-4.27823366,-79.26116781",
+    "image": "https://www.google.com/maps?q=-4.27823366,-79.26116781",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA61001",
+    "codigo": "LLOJA61001",
+    "lat": -4.27611581,
+    "lon": -79.26232175,
+    "link": "https://www.google.com/maps?q=-4.27611581,-79.26232175",
+    "image": "https://www.google.com/maps?q=-4.27611581,-79.26232175",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA61001",
+    "codigo": "LLOJA61001",
+    "lat": -4.271896,
+    "lon": -79.26403973,
+    "link": "https://www.google.com/maps?q=-4.271896,-79.26403973",
+    "image": "https://www.google.com/maps?q=-4.271896,-79.26403973",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA61001",
+    "codigo": "LLOJA61001",
+    "lat": -4.25775662,
+    "lon": -79.261578,
+    "link": "https://www.google.com/maps?q=-4.25775662,-79.261578",
+    "image": "https://www.google.com/maps?q=-4.25775662,-79.261578",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA61001",
+    "codigo": "LLOJA61001",
+    "lat": -4.25778432,
+    "lon": -79.26159534,
+    "link": "https://www.google.com/maps?q=-4.25778432,-79.26159534",
+    "image": "https://www.google.com/maps?q=-4.25778432,-79.26159534",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA61003",
+    "codigo": "LLOJA61003",
+    "lat": -4.25327402,
+    "lon": -79.22988027,
+    "link": "https://www.google.com/maps?q=-4.25327402,-79.22988027",
+    "image": "https://www.google.com/maps?q=-4.25327402,-79.22988027",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA61003",
+    "codigo": "LLOJA61003",
+    "lat": -4.25616735,
+    "lon": -79.22684826,
+    "link": "https://www.google.com/maps?q=-4.25616735,-79.22684826",
+    "image": "https://www.google.com/maps?q=-4.25616735,-79.22684826",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA61003",
+    "codigo": "LLOJA61003",
+    "lat": -4.25597494,
+    "lon": -79.22618629,
+    "link": "https://www.google.com/maps?q=-4.25597494,-79.22618629",
+    "image": "https://www.google.com/maps?q=-4.25597494,-79.22618629",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA61003",
+    "codigo": "LLOJA61003",
+    "lat": -4.25930034,
+    "lon": -79.22401668,
+    "link": "https://www.google.com/maps?q=-4.25930034,-79.22401668",
+    "image": "https://www.google.com/maps?q=-4.25930034,-79.22401668",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA61017",
+    "codigo": "LLOJA61017",
+    "lat": -4.25450158,
+    "lon": -79.23280125,
+    "link": "https://www.google.com/maps?q=-4.25450158,-79.23280125",
+    "image": "https://www.google.com/maps?q=-4.25450158,-79.23280125",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA61013",
+    "codigo": "LLOJA61013",
+    "lat": -4.25978484,
+    "lon": -79.21040196,
+    "link": "https://www.google.com/maps?q=-4.25978484,-79.21040196",
+    "image": "https://www.google.com/maps?q=-4.25978484,-79.21040196",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA61013",
+    "codigo": "LLOJA61013",
+    "lat": -4.25801959,
+    "lon": -79.20872937,
+    "link": "https://www.google.com/maps?q=-4.25801959,-79.20872937",
+    "image": "https://www.google.com/maps?q=-4.25801959,-79.20872937",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA61013",
+    "codigo": "LLOJA61013",
+    "lat": -4.25801227,
+    "lon": -79.20864189,
+    "link": "https://www.google.com/maps?q=-4.25801227,-79.20864189",
+    "image": "https://www.google.com/maps?q=-4.25801227,-79.20864189",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA61013",
+    "codigo": "LLOJA61013",
+    "lat": -4.25787284,
+    "lon": -79.20849042,
+    "link": "https://www.google.com/maps?q=-4.25787284,-79.20849042",
+    "image": "https://www.google.com/maps?q=-4.25787284,-79.20849042",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA61013",
+    "codigo": "LLOJA61013",
+    "lat": -4.2575525,
+    "lon": -79.20767449,
+    "link": "https://www.google.com/maps?q=-4.2575525,-79.20767449",
+    "image": "https://www.google.com/maps?q=-4.2575525,-79.20767449",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA61013",
+    "codigo": "LLOJA61013",
+    "lat": -4.25712141,
+    "lon": -79.20651785,
+    "link": "https://www.google.com/maps?q=-4.25712141,-79.20651785",
+    "image": "https://www.google.com/maps?q=-4.25712141,-79.20651785",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA61013",
+    "codigo": "LLOJA61013",
+    "lat": -4.25705678,
+    "lon": -79.20620263,
+    "link": "https://www.google.com/maps?q=-4.25705678,-79.20620263",
+    "image": "https://www.google.com/maps?q=-4.25705678,-79.20620263",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA61013",
+    "codigo": "LLOJA61013",
+    "lat": -4.25582203,
+    "lon": -79.20385895,
+    "link": "https://www.google.com/maps?q=-4.25582203,-79.20385895",
+    "image": "https://www.google.com/maps?q=-4.25582203,-79.20385895",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA61013",
+    "codigo": "LLOJA61013",
+    "lat": -4.25439559,
+    "lon": -79.2023875,
+    "link": "https://www.google.com/maps?q=-4.25439559,-79.2023875",
+    "image": "https://www.google.com/maps?q=-4.25439559,-79.2023875",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA61012",
+    "codigo": "LLOJA61012",
+    "lat": -4.26729932,
+    "lon": -79.20512515,
+    "link": "https://www.google.com/maps?q=-4.26729932,-79.20512515",
+    "image": "https://www.google.com/maps?q=-4.26729932,-79.20512515",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA61023",
+    "codigo": "LLOJA61023",
+    "lat": -4.27089272,
+    "lon": -79.22017392,
+    "link": "https://www.google.com/maps?q=-4.27089272,-79.22017392",
+    "image": "https://www.google.com/maps?q=-4.27089272,-79.22017392",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA61004",
+    "codigo": "LLOJA61004",
+    "lat": -4.29240853,
+    "lon": -79.21694835,
+    "link": "https://www.google.com/maps?q=-4.29240853,-79.21694835",
+    "image": "https://www.google.com/maps?q=-4.29240853,-79.21694835",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA61004",
+    "codigo": "LLOJA61004",
+    "lat": -4.29430027,
+    "lon": -79.21633062,
+    "link": "https://www.google.com/maps?q=-4.29430027,-79.21633062",
+    "image": "https://www.google.com/maps?q=-4.29430027,-79.21633062",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA61004",
+    "codigo": "LLOJA61004",
+    "lat": -4.2971908,
+    "lon": -79.21606815,
+    "link": "https://www.google.com/maps?q=-4.2971908,-79.21606815",
+    "image": "https://www.google.com/maps?q=-4.2971908,-79.21606815",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA61008",
+    "codigo": "LLOJA61008",
+    "lat": -4.28274269,
+    "lon": -79.21391108,
+    "link": "https://www.google.com/maps?q=-4.28274269,-79.21391108",
+    "image": "https://www.google.com/maps?q=-4.28274269,-79.21391108",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA61025",
+    "codigo": "LLOJA61025",
+    "lat": -4.28452575,
+    "lon": -79.21134197,
+    "link": "https://www.google.com/maps?q=-4.28452575,-79.21134197",
+    "image": "https://www.google.com/maps?q=-4.28452575,-79.21134197",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA58008",
+    "codigo": "LLOJA58008",
+    "lat": -4.22584756,
+    "lon": -79.19669812,
+    "link": "https://www.google.com/maps?q=-4.22584756,-79.19669812",
+    "image": "https://www.google.com/maps?q=-4.22584756,-79.19669812",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA58008",
+    "codigo": "LLOJA58008",
+    "lat": -4.22583089,
+    "lon": -79.19675729,
+    "link": "https://www.google.com/maps?q=-4.22583089,-79.19675729",
+    "image": "https://www.google.com/maps?q=-4.22583089,-79.19675729",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA58008",
+    "codigo": "LLOJA58008",
+    "lat": -4.22482435,
+    "lon": -79.20385738,
+    "link": "https://www.google.com/maps?q=-4.22482435,-79.20385738",
+    "image": "https://www.google.com/maps?q=-4.22482435,-79.20385738",
+    "capa_rod": "Afirmado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA58006",
+    "codigo": "LLOJA58006",
+    "lat": -4.23487208,
+    "lon": -79.22225423,
+    "link": "https://www.google.com/maps?q=-4.23487208,-79.22225423",
+    "image": "https://www.google.com/maps?q=-4.23487208,-79.22225423",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA58017",
+    "codigo": "LLOJA58017",
+    "lat": -4.23337338,
+    "lon": -79.20915154,
+    "link": "https://www.google.com/maps?q=-4.23337338,-79.20915154",
+    "image": "https://www.google.com/maps?q=-4.23337338,-79.20915154",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA63007",
+    "codigo": "LLOJA63007",
+    "lat": -4.34384328,
+    "lon": -79.23536674,
+    "link": "https://www.google.com/maps?q=-4.34384328,-79.23536674",
+    "image": "https://www.google.com/maps?q=-4.34384328,-79.23536674",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA63007",
+    "codigo": "LLOJA63007",
+    "lat": -4.34383003,
+    "lon": -79.23537355,
+    "link": "https://www.google.com/maps?q=-4.34383003,-79.23537355",
+    "image": "https://www.google.com/maps?q=-4.34383003,-79.23537355",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA63007",
+    "codigo": "LLOJA63007",
+    "lat": -4.34500038,
+    "lon": -79.23737184,
+    "link": "https://www.google.com/maps?q=-4.34500038,-79.23737184",
+    "image": "https://www.google.com/maps?q=-4.34500038,-79.23737184",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA63007",
+    "codigo": "LLOJA63007",
+    "lat": -4.34515099,
+    "lon": -79.23757194,
+    "link": "https://www.google.com/maps?q=-4.34515099,-79.23757194",
+    "image": "https://www.google.com/maps?q=-4.34515099,-79.23757194",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA63007",
+    "codigo": "LLOJA63007",
+    "lat": -4.34566179,
+    "lon": -79.23877336,
+    "link": "https://www.google.com/maps?q=-4.34566179,-79.23877336",
+    "image": "https://www.google.com/maps?q=-4.34566179,-79.23877336",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA63004",
+    "codigo": "LLOJA63004",
+    "lat": -4.34435143,
+    "lon": -79.23373167,
+    "link": "https://www.google.com/maps?q=-4.34435143,-79.23373167",
+    "image": "https://www.google.com/maps?q=-4.34435143,-79.23373167",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA63003",
+    "codigo": "LLOJA63003",
+    "lat": -4.3574651,
+    "lon": -79.2270023,
+    "link": "https://www.google.com/maps?q=-4.3574651,-79.2270023",
+    "image": "https://www.google.com/maps?q=-4.3574651,-79.2270023",
+    "capa_rod": "Hormigón",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA63003",
+    "codigo": "LLOJA63003",
+    "lat": -4.36125465,
+    "lon": -79.22593662,
+    "link": "https://www.google.com/maps?q=-4.36125465,-79.22593662",
+    "image": "https://www.google.com/maps?q=-4.36125465,-79.22593662",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA63003",
+    "codigo": "LLOJA63003",
+    "lat": -4.36100355,
+    "lon": -79.22612511,
+    "link": "https://www.google.com/maps?q=-4.36100355,-79.22612511",
+    "image": "https://www.google.com/maps?q=-4.36100355,-79.22612511",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA63003",
+    "codigo": "LLOJA63003",
+    "lat": -4.36235187,
+    "lon": -79.22348547,
+    "link": "https://www.google.com/maps?q=-4.36235187,-79.22348547",
+    "image": "https://www.google.com/maps?q=-4.36235187,-79.22348547",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA63003",
+    "codigo": "LLOJA63003",
+    "lat": -4.36279595,
+    "lon": -79.22304845,
+    "link": "https://www.google.com/maps?q=-4.36279595,-79.22304845",
+    "image": "https://www.google.com/maps?q=-4.36279595,-79.22304845",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA63003",
+    "codigo": "LLOJA63003",
+    "lat": -4.36544198,
+    "lon": -79.22385929,
+    "link": "https://www.google.com/maps?q=-4.36544198,-79.22385929",
+    "image": "https://www.google.com/maps?q=-4.36544198,-79.22385929",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA63003",
+    "codigo": "LLOJA63003",
+    "lat": -4.36780156,
+    "lon": -79.22627513,
+    "link": "https://www.google.com/maps?q=-4.36780156,-79.22627513",
+    "image": "https://www.google.com/maps?q=-4.36780156,-79.22627513",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA63003",
+    "codigo": "LLOJA63003",
+    "lat": -4.36792148,
+    "lon": -79.22630465,
+    "link": "https://www.google.com/maps?q=-4.36792148,-79.22630465",
+    "image": "https://www.google.com/maps?q=-4.36792148,-79.22630465",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA63004",
+    "codigo": "LLOJA63004",
+    "lat": -4.36937691,
+    "lon": -79.22789062,
+    "link": "https://www.google.com/maps?q=-4.36937691,-79.22789062",
+    "image": "https://www.google.com/maps?q=-4.36937691,-79.22789062",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA63004",
+    "codigo": "LLOJA63004",
+    "lat": -4.37306794,
+    "lon": -79.22908496,
+    "link": "https://www.google.com/maps?q=-4.37306794,-79.22908496",
+    "image": "https://www.google.com/maps?q=-4.37306794,-79.22908496",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA63004",
+    "codigo": "LLOJA63004",
+    "lat": -4.38017805,
+    "lon": -79.23197343,
+    "link": "https://www.google.com/maps?q=-4.38017805,-79.23197343",
+    "image": "https://www.google.com/maps?q=-4.38017805,-79.23197343",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA63004",
+    "codigo": "LLOJA63004",
+    "lat": -4.38106426,
+    "lon": -79.23192713,
+    "link": "https://www.google.com/maps?q=-4.38106426,-79.23192713",
+    "image": "https://www.google.com/maps?q=-4.38106426,-79.23192713",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA63004",
+    "codigo": "LLOJA63004",
+    "lat": -4.38111967,
+    "lon": -79.2319449,
+    "link": "https://www.google.com/maps?q=-4.38111967,-79.2319449",
+    "image": "https://www.google.com/maps?q=-4.38111967,-79.2319449",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA63004",
+    "codigo": "LLOJA63004",
+    "lat": -4.36856601,
+    "lon": -79.22739593,
+    "link": "https://www.google.com/maps?q=-4.36856601,-79.22739593",
+    "image": "https://www.google.com/maps?q=-4.36856601,-79.22739593",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA63002",
+    "codigo": "LLOJA63002",
+    "lat": -4.32191351,
+    "lon": -79.23329731,
+    "link": "https://www.google.com/maps?q=-4.32191351,-79.23329731",
+    "image": "https://www.google.com/maps?q=-4.32191351,-79.23329731",
+    "capa_rod": "Hormigón",
+    "severidad": "Media",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA63001",
+    "codigo": "LLOJA63001",
+    "lat": -4.32648764,
+    "lon": -79.25963688,
+    "link": "https://www.google.com/maps?q=-4.32648764,-79.25963688",
+    "image": "https://www.google.com/maps?q=-4.32648764,-79.25963688",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA63001",
+    "codigo": "LLOJA63001",
+    "lat": -4.32733303,
+    "lon": -79.25397097,
+    "link": "https://www.google.com/maps?q=-4.32733303,-79.25397097",
+    "image": "https://www.google.com/maps?q=-4.32733303,-79.25397097",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA63001",
+    "codigo": "LLOJA63001",
+    "lat": -4.32712885,
+    "lon": -79.2548517,
+    "link": "https://www.google.com/maps?q=-4.32712885,-79.2548517",
+    "image": "https://www.google.com/maps?q=-4.32712885,-79.2548517",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA63001",
+    "codigo": "LLOJA63001",
+    "lat": -4.32722195,
+    "lon": -79.25280865,
+    "link": "https://www.google.com/maps?q=-4.32722195,-79.25280865",
+    "image": "https://www.google.com/maps?q=-4.32722195,-79.25280865",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA63001",
+    "codigo": "LLOJA63001",
+    "lat": -4.32672572,
+    "lon": -79.25592824,
+    "link": "https://www.google.com/maps?q=-4.32672572,-79.25592824",
+    "image": "https://www.google.com/maps?q=-4.32672572,-79.25592824",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA63001",
+    "codigo": "LLOJA63001",
+    "lat": -4.3270247,
+    "lon": -79.25147714,
+    "link": "https://www.google.com/maps?q=-4.3270247,-79.25147714",
+    "image": "https://www.google.com/maps?q=-4.3270247,-79.25147714",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA63001",
+    "codigo": "LLOJA63001",
+    "lat": -4.32716806,
+    "lon": -79.25100886,
+    "link": "https://www.google.com/maps?q=-4.32716806,-79.25100886",
+    "image": "https://www.google.com/maps?q=-4.32716806,-79.25100886",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA63001",
+    "codigo": "LLOJA63001",
+    "lat": -4.33030515,
+    "lon": -79.24586322,
+    "link": "https://www.google.com/maps?q=-4.33030515,-79.24586322",
+    "image": "https://www.google.com/maps?q=-4.33030515,-79.24586322",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA63001",
+    "codigo": "LLOJA63001",
+    "lat": -4.33019854,
+    "lon": -79.24524448,
+    "link": "https://www.google.com/maps?q=-4.33019854,-79.24524448",
+    "image": "https://www.google.com/maps?q=-4.33019854,-79.24524448",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA63004",
+    "codigo": "LLOJA63004",
+    "lat": -4.33312192,
+    "lon": -79.23853959,
+    "link": "https://www.google.com/maps?q=-4.33312192,-79.23853959",
+    "image": "https://www.google.com/maps?q=-4.33312192,-79.23853959",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA63004",
+    "codigo": "LLOJA63004",
+    "lat": -4.33692737,
+    "lon": -79.23484081,
+    "link": "https://www.google.com/maps?q=-4.33692737,-79.23484081",
+    "image": "https://www.google.com/maps?q=-4.33692737,-79.23484081",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA63007",
+    "codigo": "LLOJA63007",
+    "lat": -4.34165551,
+    "lon": -79.23526127,
+    "link": "https://www.google.com/maps?q=-4.34165551,-79.23526127",
+    "image": "https://www.google.com/maps?q=-4.34165551,-79.23526127",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA63002",
+    "codigo": "LLOJA63002",
+    "lat": -4.33261672,
+    "lon": -79.22427649,
+    "link": "https://www.google.com/maps?q=-4.33261672,-79.22427649",
+    "image": "https://www.google.com/maps?q=-4.33261672,-79.22427649",
+    "capa_rod": "Hormigón",
+    "severidad": "Media",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LCAT51049",
+    "codigo": "LCAT51049",
+    "lat": -4.18898511,
+    "lon": -79.30463031,
+    "link": "https://www.google.com/maps?q=-4.18898511,-79.30463031",
+    "image": "https://www.google.com/maps?q=-4.18898511,-79.30463031",
+    "capa_rod": "Asfaltico",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LCAT51049",
+    "codigo": "LCAT51049",
+    "lat": -4.18012956,
+    "lon": -79.3011107,
+    "link": "https://www.google.com/maps?q=-4.18012956,-79.3011107",
+    "image": "https://www.google.com/maps?q=-4.18012956,-79.3011107",
+    "capa_rod": "Asfaltico",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LCAT51049",
+    "codigo": "LCAT51049",
+    "lat": -4.176733,
+    "lon": -79.29923875,
+    "link": "https://www.google.com/maps?q=-4.176733,-79.29923875",
+    "image": "https://www.google.com/maps?q=-4.176733,-79.29923875",
+    "capa_rod": "Asfaltico",
+    "severidad": "Alta",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LCAT51049",
+    "codigo": "LCAT51049",
+    "lat": -4.17674388,
+    "lon": -79.29929125,
+    "link": "https://www.google.com/maps?q=-4.17674388,-79.29929125",
+    "image": "https://www.google.com/maps?q=-4.17674388,-79.29929125",
+    "capa_rod": "Asfaltico",
+    "severidad": "Alta",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LCAT51049",
+    "codigo": "LCAT51049",
+    "lat": -4.16639025,
+    "lon": -79.30000015,
+    "link": "https://www.google.com/maps?q=-4.16639025,-79.30000015",
+    "image": "https://www.google.com/maps?q=-4.16639025,-79.30000015",
+    "capa_rod": "Asfaltico",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LCAT51049",
+    "codigo": "LCAT51049",
+    "lat": -4.16497134,
+    "lon": -79.29894977,
+    "link": "https://www.google.com/maps?q=-4.16497134,-79.29894977",
+    "image": "https://www.google.com/maps?q=-4.16497134,-79.29894977",
+    "capa_rod": "Asfaltico",
+    "severidad": "Alta",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LCAT51049",
+    "codigo": "LCAT51049",
+    "lat": -4.16510603,
+    "lon": -79.29896721,
+    "link": "https://www.google.com/maps?q=-4.16510603,-79.29896721",
+    "image": "https://www.google.com/maps?q=-4.16510603,-79.29896721",
+    "capa_rod": "Asfaltico",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LCAT51049",
+    "codigo": "LCAT51049",
+    "lat": -4.16425087,
+    "lon": -79.2981184,
+    "link": "https://www.google.com/maps?q=-4.16425087,-79.2981184",
+    "image": "https://www.google.com/maps?q=-4.16425087,-79.2981184",
+    "capa_rod": "Asfaltico",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LCAT51049",
+    "codigo": "LCAT51049",
+    "lat": -4.16440959,
+    "lon": -79.29832925,
+    "link": "https://www.google.com/maps?q=-4.16440959,-79.29832925",
+    "image": "https://www.google.com/maps?q=-4.16440959,-79.29832925",
+    "capa_rod": "Asfaltico",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LCAT51049",
+    "codigo": "LCAT51049",
+    "lat": -4.16323005,
+    "lon": -79.29686947,
+    "link": "https://www.google.com/maps?q=-4.16323005,-79.29686947",
+    "image": "https://www.google.com/maps?q=-4.16323005,-79.29686947",
+    "capa_rod": "Asfaltico",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LCAT51049",
+    "codigo": "LCAT51049",
+    "lat": -4.16263689,
+    "lon": -79.29624309,
+    "link": "https://www.google.com/maps?q=-4.16263689,-79.29624309",
+    "image": "https://www.google.com/maps?q=-4.16263689,-79.29624309",
+    "capa_rod": "Asfaltico",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA56005",
+    "codigo": "LLOJA56005",
+    "lat": -4.21422785,
+    "lon": -79.22984984,
+    "link": "https://www.google.com/maps?q=-4.21422785,-79.22984984",
+    "image": "https://www.google.com/maps?q=-4.21422785,-79.22984984",
+    "capa_rod": "Asfaltico",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA56005",
+    "codigo": "LLOJA56005",
+    "lat": -4.21420667,
+    "lon": -79.2297457,
+    "link": "https://www.google.com/maps?q=-4.21420667,-79.2297457",
+    "image": "https://www.google.com/maps?q=-4.21420667,-79.2297457",
+    "capa_rod": "Asfaltico",
+    "severidad": "Media",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA56001",
+    "codigo": "LLOJA56001",
+    "lat": -4.21519026,
+    "lon": -79.22885564,
+    "link": "https://www.google.com/maps?q=-4.21519026,-79.22885564",
+    "image": "https://www.google.com/maps?q=-4.21519026,-79.22885564",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA56003",
+    "codigo": "LLOJA56003",
+    "lat": -4.2281307,
+    "lon": -79.26082465,
+    "link": "https://www.google.com/maps?q=-4.2281307,-79.26082465",
+    "image": "https://www.google.com/maps?q=-4.2281307,-79.26082465",
+    "capa_rod": "Afirmado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA56003",
+    "codigo": "LLOJA56003",
+    "lat": -4.22843974,
+    "lon": -79.26512172,
+    "link": "https://www.google.com/maps?q=-4.22843974,-79.26512172",
+    "image": "https://www.google.com/maps?q=-4.22843974,-79.26512172",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA56003",
+    "codigo": "LLOJA56003",
+    "lat": -4.22933417,
+    "lon": -79.26674344,
+    "link": "https://www.google.com/maps?q=-4.22933417,-79.26674344",
+    "image": "https://www.google.com/maps?q=-4.22933417,-79.26674344",
+    "capa_rod": "Asfaltico",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA56003",
+    "codigo": "LLOJA56003",
+    "lat": -4.22966503,
+    "lon": -79.26907388,
+    "link": "https://www.google.com/maps?q=-4.22966503,-79.26907388",
+    "image": "https://www.google.com/maps?q=-4.22966503,-79.26907388",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA56003",
+    "codigo": "LLOJA56003",
+    "lat": -4.22970298,
+    "lon": -79.2719091,
+    "link": "https://www.google.com/maps?q=-4.22970298,-79.2719091",
+    "image": "https://www.google.com/maps?q=-4.22970298,-79.2719091",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA56003",
+    "codigo": "LLOJA56003",
+    "lat": -4.22945935,
+    "lon": -79.27205284,
+    "link": "https://www.google.com/maps?q=-4.22945935,-79.27205284",
+    "image": "https://www.google.com/maps?q=-4.22945935,-79.27205284",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA56003",
+    "codigo": "LLOJA56003",
+    "lat": -4.22969808,
+    "lon": -79.27258735,
+    "link": "https://www.google.com/maps?q=-4.22969808,-79.27258735",
+    "image": "https://www.google.com/maps?q=-4.22969808,-79.27258735",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA56004",
+    "codigo": "LLOJA56004",
+    "lat": -4.22846513,
+    "lon": -79.27569844,
+    "link": "https://www.google.com/maps?q=-4.22846513,-79.27569844",
+    "image": "https://www.google.com/maps?q=-4.22846513,-79.27569844",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA56004",
+    "codigo": "LLOJA56004",
+    "lat": -4.22833629,
+    "lon": -79.27645984,
+    "link": "https://www.google.com/maps?q=-4.22833629,-79.27645984",
+    "image": "https://www.google.com/maps?q=-4.22833629,-79.27645984",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA56004",
+    "codigo": "LLOJA56004",
+    "lat": -4.22954757,
+    "lon": -79.28058578,
+    "link": "https://www.google.com/maps?q=-4.22954757,-79.28058578",
+    "image": "https://www.google.com/maps?q=-4.22954757,-79.28058578",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA56004",
+    "codigo": "LLOJA56004",
+    "lat": -4.23481778,
+    "lon": -79.29399905,
+    "link": "https://www.google.com/maps?q=-4.23481778,-79.29399905",
+    "image": "https://www.google.com/maps?q=-4.23481778,-79.29399905",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA56012",
+    "codigo": "LLOJA56012",
+    "lat": -4.21577384,
+    "lon": -79.27030739,
+    "link": "https://www.google.com/maps?q=-4.21577384,-79.27030739",
+    "image": "https://www.google.com/maps?q=-4.21577384,-79.27030739",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA56016",
+    "codigo": "LLOJA56016",
+    "lat": -4.17371474,
+    "lon": -79.2711691,
+    "link": "https://www.google.com/maps?q=-4.17371474,-79.2711691",
+    "image": "https://www.google.com/maps?q=-4.17371474,-79.2711691",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LCAT51001",
+    "codigo": "LCAT51001",
+    "lat": -4.16903404,
+    "lon": -79.27599314,
+    "link": "https://www.google.com/maps?q=-4.16903404,-79.27599314",
+    "image": "https://www.google.com/maps?q=-4.16903404,-79.27599314",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LCAT51001",
+    "codigo": "LCAT51001",
+    "lat": -4.16909065,
+    "lon": -79.2758667,
+    "link": "https://www.google.com/maps?q=-4.16909065,-79.2758667",
+    "image": "https://www.google.com/maps?q=-4.16909065,-79.2758667",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LCAT51001",
+    "codigo": "LCAT51001",
+    "lat": -4.16944515,
+    "lon": -79.27697646,
+    "link": "https://www.google.com/maps?q=-4.16944515,-79.27697646",
+    "image": "https://www.google.com/maps?q=-4.16944515,-79.27697646",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LCAT51001",
+    "codigo": "LCAT51001",
+    "lat": -4.16410411,
+    "lon": -79.27887618,
+    "link": "https://www.google.com/maps?q=-4.16410411,-79.27887618",
+    "image": "https://www.google.com/maps?q=-4.16410411,-79.27887618",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LCAT51001",
+    "codigo": "LCAT51001",
+    "lat": -4.16858712,
+    "lon": -79.28109364,
+    "link": "https://www.google.com/maps?q=-4.16858712,-79.28109364",
+    "image": "https://www.google.com/maps?q=-4.16858712,-79.28109364",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA56013",
+    "codigo": "LLOJA56013",
+    "lat": -4.20382188,
+    "lon": -79.26158642,
+    "link": "https://www.google.com/maps?q=-4.20382188,-79.26158642",
+    "image": "https://www.google.com/maps?q=-4.20382188,-79.26158642",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA56033",
+    "codigo": "LLOJA56033",
+    "lat": -4.2148883,
+    "lon": -79.26059324,
+    "link": "https://www.google.com/maps?q=-4.2148883,-79.26059324",
+    "image": "https://www.google.com/maps?q=-4.2148883,-79.26059324",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA56024",
+    "codigo": "LLOJA56024",
+    "lat": -4.19470756,
+    "lon": -79.25126278,
+    "link": "https://www.google.com/maps?q=-4.19470756,-79.25126278",
+    "image": "https://www.google.com/maps?q=-4.19470756,-79.25126278",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA56024",
+    "codigo": "LLOJA56024",
+    "lat": -4.19417135,
+    "lon": -79.24490538,
+    "link": "https://www.google.com/maps?q=-4.19417135,-79.24490538",
+    "image": "https://www.google.com/maps?q=-4.19417135,-79.24490538",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA56018",
+    "codigo": "LLOJA56018",
+    "lat": -4.20213808,
+    "lon": -79.24383476,
+    "link": "https://www.google.com/maps?q=-4.20213808,-79.24383476",
+    "image": "https://www.google.com/maps?q=-4.20213808,-79.24383476",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA56018",
+    "codigo": "LLOJA56018",
+    "lat": -4.20484114,
+    "lon": -79.24255422,
+    "link": "https://www.google.com/maps?q=-4.20484114,-79.24255422",
+    "image": "https://www.google.com/maps?q=-4.20484114,-79.24255422",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA56020",
+    "codigo": "LLOJA56020",
+    "lat": -4.20304513,
+    "lon": -79.23043014,
+    "link": "https://www.google.com/maps?q=-4.20304513,-79.23043014",
+    "image": "https://www.google.com/maps?q=-4.20304513,-79.23043014",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA56020",
+    "codigo": "LLOJA56020",
+    "lat": -4.20717686,
+    "lon": -79.23378541,
+    "link": "https://www.google.com/maps?q=-4.20717686,-79.23378541",
+    "image": "https://www.google.com/maps?q=-4.20717686,-79.23378541",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA56020",
+    "codigo": "LLOJA56020",
+    "lat": -4.20334008,
+    "lon": -79.2365395,
+    "link": "https://www.google.com/maps?q=-4.20334008,-79.2365395",
+    "image": "https://www.google.com/maps?q=-4.20334008,-79.2365395",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA56025",
+    "codigo": "LLOJA56025",
+    "lat": -4.19605454,
+    "lon": -79.23154693,
+    "link": "https://www.google.com/maps?q=-4.19605454,-79.23154693",
+    "image": "https://www.google.com/maps?q=-4.19605454,-79.23154693",
+    "capa_rod": "Hormigón",
+    "severidad": "Media",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA56025",
+    "codigo": "LLOJA56025",
+    "lat": -4.20110034,
+    "lon": -79.23332892,
+    "link": "https://www.google.com/maps?q=-4.20110034,-79.23332892",
+    "image": "https://www.google.com/maps?q=-4.20110034,-79.23332892",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA56025",
+    "codigo": "LLOJA56025",
+    "lat": -4.19750038,
+    "lon": -79.24105613,
+    "link": "https://www.google.com/maps?q=-4.19750038,-79.24105613",
+    "image": "https://www.google.com/maps?q=-4.19750038,-79.24105613",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA56025",
+    "codigo": "LLOJA56025",
+    "lat": -4.19716521,
+    "lon": -79.2416535,
+    "link": "https://www.google.com/maps?q=-4.19716521,-79.2416535",
+    "image": "https://www.google.com/maps?q=-4.19716521,-79.2416535",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA56016",
+    "codigo": "LLOJA56016",
+    "lat": -4.1852881,
+    "lon": -79.24243745,
+    "link": "https://www.google.com/maps?q=-4.1852881,-79.24243745",
+    "image": "https://www.google.com/maps?q=-4.1852881,-79.24243745",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA56028",
+    "codigo": "LLOJA56028",
+    "lat": -4.18109185,
+    "lon": -79.24343919,
+    "link": "https://www.google.com/maps?q=-4.18109185,-79.24343919",
+    "image": "https://www.google.com/maps?q=-4.18109185,-79.24343919",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA56028",
+    "codigo": "LLOJA56028",
+    "lat": -4.18069838,
+    "lon": -79.2344487,
+    "link": "https://www.google.com/maps?q=-4.18069838,-79.2344487",
+    "image": "https://www.google.com/maps?q=-4.18069838,-79.2344487",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA56028",
+    "codigo": "LLOJA56028",
+    "lat": -4.15956944,
+    "lon": -79.24727276,
+    "link": "https://www.google.com/maps?q=-4.15956944,-79.24727276",
+    "image": "https://www.google.com/maps?q=-4.15956944,-79.24727276",
+    "capa_rod": "Suelo Natural",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA56016",
+    "codigo": "LLOJA56016",
+    "lat": -4.1862818,
+    "lon": -79.24994024,
+    "link": "https://www.google.com/maps?q=-4.1862818,-79.24994024",
+    "image": "https://www.google.com/maps?q=-4.1862818,-79.24994024",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA56016",
+    "codigo": "LLOJA56016",
+    "lat": -4.18944466,
+    "lon": -79.25109005,
+    "link": "https://www.google.com/maps?q=-4.18944466,-79.25109005",
+    "image": "https://www.google.com/maps?q=-4.18944466,-79.25109005",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA56016",
+    "codigo": "LLOJA56016",
+    "lat": -4.18553836,
+    "lon": -79.2541773,
+    "link": "https://www.google.com/maps?q=-4.18553836,-79.2541773",
+    "image": "https://www.google.com/maps?q=-4.18553836,-79.2541773",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA56016",
+    "codigo": "LLOJA56016",
+    "lat": -4.18725779,
+    "lon": -79.2566843,
+    "link": "https://www.google.com/maps?q=-4.18725779,-79.2566843",
+    "image": "https://www.google.com/maps?q=-4.18725779,-79.2566843",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA56016",
+    "codigo": "LLOJA56016",
+    "lat": -4.18205874,
+    "lon": -79.25984235,
+    "link": "https://www.google.com/maps?q=-4.18205874,-79.25984235",
+    "image": "https://www.google.com/maps?q=-4.18205874,-79.25984235",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA56011",
+    "codigo": "LLOJA56011",
+    "lat": -4.20808678,
+    "lon": -79.25769458,
+    "link": "https://www.google.com/maps?q=-4.20808678,-79.25769458",
+    "image": "https://www.google.com/maps?q=-4.20808678,-79.25769458",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA56031",
+    "codigo": "LLOJA56031",
+    "lat": -4.20140468,
+    "lon": -79.2537369,
+    "link": "https://www.google.com/maps?q=-4.20140468,-79.2537369",
+    "image": "https://www.google.com/maps?q=-4.20140468,-79.2537369",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA56031",
+    "codigo": "LLOJA56031",
+    "lat": -4.20064261,
+    "lon": -79.25086188,
+    "link": "https://www.google.com/maps?q=-4.20064261,-79.25086188",
+    "image": "https://www.google.com/maps?q=-4.20064261,-79.25086188",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA56031",
+    "codigo": "LLOJA56031",
+    "lat": -4.20043825,
+    "lon": -79.25047584,
+    "link": "https://www.google.com/maps?q=-4.20043825,-79.25047584",
+    "image": "https://www.google.com/maps?q=-4.20043825,-79.25047584",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA56015",
+    "codigo": "LLOJA56015",
+    "lat": -4.20149132,
+    "lon": -79.24733832,
+    "link": "https://www.google.com/maps?q=-4.20149132,-79.24733832",
+    "image": "https://www.google.com/maps?q=-4.20149132,-79.24733832",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA56007",
+    "codigo": "LLOJA56007",
+    "lat": -4.21109168,
+    "lon": -79.27789385,
+    "link": "https://www.google.com/maps?q=-4.21109168,-79.27789385",
+    "image": "https://www.google.com/maps?q=-4.21109168,-79.27789385",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA56006",
+    "codigo": "LLOJA56006",
+    "lat": -4.20944614,
+    "lon": -79.21549573,
+    "link": "https://www.google.com/maps?q=-4.20944614,-79.21549573",
+    "image": "https://www.google.com/maps?q=-4.20944614,-79.21549573",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA54001",
+    "codigo": "LLOJA54001",
+    "lat": -3.79367666,
+    "lon": -79.34975509,
+    "link": "https://www.google.com/maps?q=-3.79367666,-79.34975509",
+    "image": "https://www.google.com/maps?q=-3.79367666,-79.34975509",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA54001",
+    "codigo": "LLOJA54001",
+    "lat": -3.79769687,
+    "lon": -79.35602931,
+    "link": "https://www.google.com/maps?q=-3.79769687,-79.35602931",
+    "image": "https://www.google.com/maps?q=-3.79769687,-79.35602931",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA54001",
+    "codigo": "LLOJA54001",
+    "lat": -3.79846098,
+    "lon": -79.35851126,
+    "link": "https://www.google.com/maps?q=-3.79846098,-79.35851126",
+    "image": "https://www.google.com/maps?q=-3.79846098,-79.35851126",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA54001",
+    "codigo": "LLOJA54001",
+    "lat": -3.79893115,
+    "lon": -79.36338493,
+    "link": "https://www.google.com/maps?q=-3.79893115,-79.36338493",
+    "image": "https://www.google.com/maps?q=-3.79893115,-79.36338493",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA54001",
+    "codigo": "LLOJA54001",
+    "lat": -3.79548184,
+    "lon": -79.36468509,
+    "link": "https://www.google.com/maps?q=-3.79548184,-79.36468509",
+    "image": "https://www.google.com/maps?q=-3.79548184,-79.36468509",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA54001",
+    "codigo": "LLOJA54001",
+    "lat": -3.79437828,
+    "lon": -79.36421661,
+    "link": "https://www.google.com/maps?q=-3.79437828,-79.36421661",
+    "image": "https://www.google.com/maps?q=-3.79437828,-79.36421661",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA54001",
+    "codigo": "LLOJA54001",
+    "lat": -3.79171671,
+    "lon": -79.36559011,
+    "link": "https://www.google.com/maps?q=-3.79171671,-79.36559011",
+    "image": "https://www.google.com/maps?q=-3.79171671,-79.36559011",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA54001",
+    "codigo": "LLOJA54001",
+    "lat": -3.78915478,
+    "lon": -79.36479842,
+    "link": "https://www.google.com/maps?q=-3.78915478,-79.36479842",
+    "image": "https://www.google.com/maps?q=-3.78915478,-79.36479842",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA54001",
+    "codigo": "LLOJA54001",
+    "lat": -3.78831999,
+    "lon": -79.36367209,
+    "link": "https://www.google.com/maps?q=-3.78831999,-79.36367209",
+    "image": "https://www.google.com/maps?q=-3.78831999,-79.36367209",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA54001",
+    "codigo": "LLOJA54001",
+    "lat": -3.78647217,
+    "lon": -79.3613554,
+    "link": "https://www.google.com/maps?q=-3.78647217,-79.3613554",
+    "image": "https://www.google.com/maps?q=-3.78647217,-79.3613554",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA54001",
+    "codigo": "LLOJA54001",
+    "lat": -3.78444771,
+    "lon": -79.35895251,
+    "link": "https://www.google.com/maps?q=-3.78444771,-79.35895251",
+    "image": "https://www.google.com/maps?q=-3.78444771,-79.35895251",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA54001",
+    "codigo": "LLOJA54001",
+    "lat": -3.7829957,
+    "lon": -79.35940939,
+    "link": "https://www.google.com/maps?q=-3.7829957,-79.35940939",
+    "image": "https://www.google.com/maps?q=-3.7829957,-79.35940939",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA54001",
+    "codigo": "LLOJA54001",
+    "lat": -3.78310977,
+    "lon": -79.36027558,
+    "link": "https://www.google.com/maps?q=-3.78310977,-79.36027558",
+    "image": "https://www.google.com/maps?q=-3.78310977,-79.36027558",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA54001",
+    "codigo": "LLOJA54001",
+    "lat": -3.78307081,
+    "lon": -79.36244376,
+    "link": "https://www.google.com/maps?q=-3.78307081,-79.36244376",
+    "image": "https://www.google.com/maps?q=-3.78307081,-79.36244376",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA54001",
+    "codigo": "LLOJA54001",
+    "lat": -3.77870865,
+    "lon": -79.36799953,
+    "link": "https://www.google.com/maps?q=-3.77870865,-79.36799953",
+    "image": "https://www.google.com/maps?q=-3.77870865,-79.36799953",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA54001",
+    "codigo": "LLOJA54001",
+    "lat": -3.77457874,
+    "lon": -79.36910245,
+    "link": "https://www.google.com/maps?q=-3.77457874,-79.36910245",
+    "image": "https://www.google.com/maps?q=-3.77457874,-79.36910245",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLPJA54001",
+    "codigo": "LLPJA54001",
+    "lat": -3.76815408,
+    "lon": -79.36863675,
+    "link": "https://www.google.com/maps?q=-3.76815408,-79.36863675",
+    "image": "https://www.google.com/maps?q=-3.76815408,-79.36863675",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA54002",
+    "codigo": "LLOJA54002",
+    "lat": -3.76884547,
+    "lon": -79.36812027,
+    "link": "https://www.google.com/maps?q=-3.76884547,-79.36812027",
+    "image": "https://www.google.com/maps?q=-3.76884547,-79.36812027",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA54002",
+    "codigo": "LLOJA54002",
+    "lat": -3.76580394,
+    "lon": -79.36336154,
+    "link": "https://www.google.com/maps?q=-3.76580394,-79.36336154",
+    "image": "https://www.google.com/maps?q=-3.76580394,-79.36336154",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA54004",
+    "codigo": "LLOJA54004",
+    "lat": -3.76064422,
+    "lon": -79.36844233,
+    "link": "https://www.google.com/maps?q=-3.76064422,-79.36844233",
+    "image": "https://www.google.com/maps?q=-3.76064422,-79.36844233",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA54004",
+    "codigo": "LLOJA54004",
+    "lat": -3.75917388,
+    "lon": -79.36635223,
+    "link": "https://www.google.com/maps?q=-3.75917388,-79.36635223",
+    "image": "https://www.google.com/maps?q=-3.75917388,-79.36635223",
+    "capa_rod": "Suelo Natural",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA54001",
+    "codigo": "LLOJA54001",
+    "lat": -3.76625875,
+    "lon": -79.37402939,
+    "link": "https://www.google.com/maps?q=-3.76625875,-79.37402939",
+    "image": "https://www.google.com/maps?q=-3.76625875,-79.37402939",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA54001",
+    "codigo": "LLOJA54001",
+    "lat": -3.76598889,
+    "lon": -79.37474304,
+    "link": "https://www.google.com/maps?q=-3.76598889,-79.37474304",
+    "image": "https://www.google.com/maps?q=-3.76598889,-79.37474304",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA54001",
+    "codigo": "LLOJA54001",
+    "lat": -3.76614092,
+    "lon": -79.37470812,
+    "link": "https://www.google.com/maps?q=-3.76614092,-79.37470812",
+    "image": "https://www.google.com/maps?q=-3.76614092,-79.37470812",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA54001",
+    "codigo": "LLOJA54001",
+    "lat": -3.76721654,
+    "lon": -79.37469174,
+    "link": "https://www.google.com/maps?q=-3.76721654,-79.37469174",
+    "image": "https://www.google.com/maps?q=-3.76721654,-79.37469174",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA54001",
+    "codigo": "LLOJA54001",
+    "lat": -3.76714437,
+    "lon": -79.37468328,
+    "link": "https://www.google.com/maps?q=-3.76714437,-79.37468328",
+    "image": "https://www.google.com/maps?q=-3.76714437,-79.37468328",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA54001",
+    "codigo": "LLOJA54001",
+    "lat": -3.77033547,
+    "lon": -79.37436852,
+    "link": "https://www.google.com/maps?q=-3.77033547,-79.37436852",
+    "image": "https://www.google.com/maps?q=-3.77033547,-79.37436852",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA54009",
+    "codigo": "LLOJA54009",
+    "lat": -3.76797195,
+    "lon": -79.37612826,
+    "link": "https://www.google.com/maps?q=-3.76797195,-79.37612826",
+    "image": "https://www.google.com/maps?q=-3.76797195,-79.37612826",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA54007",
+    "codigo": "LLOJA54007",
+    "lat": -3.76780644,
+    "lon": -79.37821823,
+    "link": "https://www.google.com/maps?q=-3.76780644,-79.37821823",
+    "image": "https://www.google.com/maps?q=-3.76780644,-79.37821823",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA54007",
+    "codigo": "LLOJA54007",
+    "lat": -3.76819314,
+    "lon": -79.37800897,
+    "link": "https://www.google.com/maps?q=-3.76819314,-79.37800897",
+    "image": "https://www.google.com/maps?q=-3.76819314,-79.37800897",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA54010",
+    "codigo": "LLOJA54010",
+    "lat": -3.76917146,
+    "lon": -79.37863026,
+    "link": "https://www.google.com/maps?q=-3.76917146,-79.37863026",
+    "image": "https://www.google.com/maps?q=-3.76917146,-79.37863026",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA54008",
+    "codigo": "LLOJA54008",
+    "lat": -3.77455275,
+    "lon": -79.37556547,
+    "link": "https://www.google.com/maps?q=-3.77455275,-79.37556547",
+    "image": "https://www.google.com/maps?q=-3.77455275,-79.37556547",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA54008",
+    "codigo": "LLOJA54008",
+    "lat": -3.77942198,
+    "lon": -79.37617976,
+    "link": "https://www.google.com/maps?q=-3.77942198,-79.37617976",
+    "image": "https://www.google.com/maps?q=-3.77942198,-79.37617976",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA54008",
+    "codigo": "LLOJA54008",
+    "lat": -3.77976105,
+    "lon": -79.37616117,
+    "link": "https://www.google.com/maps?q=-3.77976105,-79.37616117",
+    "image": "https://www.google.com/maps?q=-3.77976105,-79.37616117",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA54008",
+    "codigo": "LLOJA54008",
+    "lat": -3.78459425,
+    "lon": -79.37677339,
+    "link": "https://www.google.com/maps?q=-3.78459425,-79.37677339",
+    "image": "https://www.google.com/maps?q=-3.78459425,-79.37677339",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA54008",
+    "codigo": "LLOJA54008",
+    "lat": -3.78452384,
+    "lon": -79.37676187,
+    "link": "https://www.google.com/maps?q=-3.78452384,-79.37676187",
+    "image": "https://www.google.com/maps?q=-3.78452384,-79.37676187",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA54008",
+    "codigo": "LLOJA54008",
+    "lat": -3.78842111,
+    "lon": -79.37375373,
+    "link": "https://www.google.com/maps?q=-3.78842111,-79.37375373",
+    "image": "https://www.google.com/maps?q=-3.78842111,-79.37375373",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA54008",
+    "codigo": "LLOJA54008",
+    "lat": -3.78862672,
+    "lon": -79.37382562,
+    "link": "https://www.google.com/maps?q=-3.78862672,-79.37382562",
+    "image": "https://www.google.com/maps?q=-3.78862672,-79.37382562",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA54008",
+    "codigo": "LLOJA54008",
+    "lat": -3.79256096,
+    "lon": -79.37757216,
+    "link": "https://www.google.com/maps?q=-3.79256096,-79.37757216",
+    "image": "https://www.google.com/maps?q=-3.79256096,-79.37757216",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA54008",
+    "codigo": "LLOJA54008",
+    "lat": -3.79534084,
+    "lon": -79.37887226,
+    "link": "https://www.google.com/maps?q=-3.79534084,-79.37887226",
+    "image": "https://www.google.com/maps?q=-3.79534084,-79.37887226",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA54008",
+    "codigo": "LLOJA54008",
+    "lat": -3.79972342,
+    "lon": -79.38450409,
+    "link": "https://www.google.com/maps?q=-3.79972342,-79.38450409",
+    "image": "https://www.google.com/maps?q=-3.79972342,-79.38450409",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA54008",
+    "codigo": "LLOJA54008",
+    "lat": -3.80177035,
+    "lon": -79.38585345,
+    "link": "https://www.google.com/maps?q=-3.80177035,-79.38585345",
+    "image": "https://www.google.com/maps?q=-3.80177035,-79.38585345",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA54008",
+    "codigo": "LLOJA54008",
+    "lat": -3.8104926,
+    "lon": -79.39384268,
+    "link": "https://www.google.com/maps?q=-3.8104926,-79.39384268",
+    "image": "https://www.google.com/maps?q=-3.8104926,-79.39384268",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA54008",
+    "codigo": "LLOJA54008",
+    "lat": -3.81139965,
+    "lon": -79.39496514,
+    "link": "https://www.google.com/maps?q=-3.81139965,-79.39496514",
+    "image": "https://www.google.com/maps?q=-3.81139965,-79.39496514",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LOOJA53006",
+    "codigo": "LOOJA53006",
+    "lat": -3.80904176,
+    "lon": -79.40141441,
+    "link": "https://www.google.com/maps?q=-3.80904176,-79.40141441",
+    "image": "https://www.google.com/maps?q=-3.80904176,-79.40141441",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA53006",
+    "codigo": "LLOJA53006",
+    "lat": -3.80831767,
+    "lon": -79.40302936,
+    "link": "https://www.google.com/maps?q=-3.80831767,-79.40302936",
+    "image": "https://www.google.com/maps?q=-3.80831767,-79.40302936",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA53006",
+    "codigo": "LLOJA53006",
+    "lat": -3.80831455,
+    "lon": -79.40313204,
+    "link": "https://www.google.com/maps?q=-3.80831455,-79.40313204",
+    "image": "https://www.google.com/maps?q=-3.80831455,-79.40313204",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA53012",
+    "codigo": "LLOJA53012",
+    "lat": -3.88391042,
+    "lon": -79.41644785,
+    "link": "https://www.google.com/maps?q=-3.88391042,-79.41644785",
+    "image": "https://www.google.com/maps?q=-3.88391042,-79.41644785",
+    "capa_rod": "Asfaltico",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA53012",
+    "codigo": "LLOJA53012",
+    "lat": -3.88355591,
+    "lon": -79.41674166,
+    "link": "https://www.google.com/maps?q=-3.88355591,-79.41674166",
+    "image": "https://www.google.com/maps?q=-3.88355591,-79.41674166",
+    "capa_rod": "Asfaltico",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA53012",
+    "codigo": "LLOJA53012",
+    "lat": -3.8832513,
+    "lon": -79.41689337,
+    "link": "https://www.google.com/maps?q=-3.8832513,-79.41689337",
+    "image": "https://www.google.com/maps?q=-3.8832513,-79.41689337",
+    "capa_rod": "Asfaltico",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA53012",
+    "codigo": "LLOJA53012",
+    "lat": -3.8832513,
+    "lon": -79.41689337,
+    "link": "https://www.google.com/maps?q=-3.8832513,-79.41689337",
+    "image": "https://www.google.com/maps?q=-3.8832513,-79.41689337",
+    "capa_rod": "Hormigón",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA53012",
+    "codigo": "LLOJA53012",
+    "lat": -3.88232403,
+    "lon": -79.41727978,
+    "link": "https://www.google.com/maps?q=-3.88232403,-79.41727978",
+    "image": "https://www.google.com/maps?q=-3.88232403,-79.41727978",
+    "capa_rod": "Asfaltico",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA53011",
+    "codigo": "LLOJA53011",
+    "lat": -3.87608951,
+    "lon": -79.4196329,
+    "link": "https://www.google.com/maps?q=-3.87608951,-79.4196329",
+    "image": "https://www.google.com/maps?q=-3.87608951,-79.4196329",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA53011",
+    "codigo": "LLOJA53011",
+    "lat": -3.87582293,
+    "lon": -79.4201925,
+    "link": "https://www.google.com/maps?q=-3.87582293,-79.4201925",
+    "image": "https://www.google.com/maps?q=-3.87582293,-79.4201925",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA53011",
+    "codigo": "LLOJA53011",
+    "lat": -3.8728923,
+    "lon": -79.4221001,
+    "link": "https://www.google.com/maps?q=-3.8728923,-79.4221001",
+    "image": "https://www.google.com/maps?q=-3.8728923,-79.4221001",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA53011",
+    "codigo": "LLOJA53011",
+    "lat": -3.87230133,
+    "lon": -79.42362269,
+    "link": "https://www.google.com/maps?q=-3.87230133,-79.42362269",
+    "image": "https://www.google.com/maps?q=-3.87230133,-79.42362269",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA53011",
+    "codigo": "LLOJA53011",
+    "lat": -3.86185418,
+    "lon": -79.43120354,
+    "link": "https://www.google.com/maps?q=-3.86185418,-79.43120354",
+    "image": "https://www.google.com/maps?q=-3.86185418,-79.43120354",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA53011",
+    "codigo": "LLOJA53011",
+    "lat": -3.85877612,
+    "lon": -79.43123067,
+    "link": "https://www.google.com/maps?q=-3.85877612,-79.43123067",
+    "image": "https://www.google.com/maps?q=-3.85877612,-79.43123067",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA53002",
+    "codigo": "LLOJA53002",
+    "lat": -3.85739419,
+    "lon": -79.41065608,
+    "link": "https://www.google.com/maps?q=-3.85739419,-79.41065608",
+    "image": "https://www.google.com/maps?q=-3.85739419,-79.41065608",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA53002",
+    "codigo": "LLOJA53002",
+    "lat": -3.85798896,
+    "lon": -79.40931106,
+    "link": "https://www.google.com/maps?q=-3.85798896,-79.40931106",
+    "image": "https://www.google.com/maps?q=-3.85798896,-79.40931106",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA53002",
+    "codigo": "LLOJA53002",
+    "lat": -3.85801774,
+    "lon": -79.40897155,
+    "link": "https://www.google.com/maps?q=-3.85801774,-79.40897155",
+    "image": "https://www.google.com/maps?q=-3.85801774,-79.40897155",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA53008",
+    "codigo": "LLOJA53008",
+    "lat": -3.83330687,
+    "lon": -79.4333201,
+    "link": "https://www.google.com/maps?q=-3.83330687,-79.4333201",
+    "image": "https://www.google.com/maps?q=-3.83330687,-79.4333201",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA53008",
+    "codigo": "LLOJA53008",
+    "lat": -3.83386793,
+    "lon": -79.43650784,
+    "link": "https://www.google.com/maps?q=-3.83386793,-79.43650784",
+    "image": "https://www.google.com/maps?q=-3.83386793,-79.43650784",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA53008",
+    "codigo": "LLOJA53008",
+    "lat": -3.83444089,
+    "lon": -79.47032857,
+    "link": "https://www.google.com/maps?q=-3.83444089,-79.47032857",
+    "image": "https://www.google.com/maps?q=-3.83444089,-79.47032857",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA53008",
+    "codigo": "LLOJA53008",
+    "lat": -3.82403212,
+    "lon": -79.48867268,
+    "link": "https://www.google.com/maps?q=-3.82403212,-79.48867268",
+    "image": "https://www.google.com/maps?q=-3.82403212,-79.48867268",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA53008",
+    "codigo": "LLOJA53008",
+    "lat": -3.82293299,
+    "lon": -79.4899888,
+    "link": "https://www.google.com/maps?q=-3.82293299,-79.4899888",
+    "image": "https://www.google.com/maps?q=-3.82293299,-79.4899888",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA53008",
+    "codigo": "LLOJA53008",
+    "lat": -3.82179172,
+    "lon": -79.49256789,
+    "link": "https://www.google.com/maps?q=-3.82179172,-79.49256789",
+    "image": "https://www.google.com/maps?q=-3.82179172,-79.49256789",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA53008",
+    "codigo": "LLOJA53008",
+    "lat": -3.82173877,
+    "lon": -79.49281163,
+    "link": "https://www.google.com/maps?q=-3.82173877,-79.49281163",
+    "image": "https://www.google.com/maps?q=-3.82173877,-79.49281163",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA53008",
+    "codigo": "LLOJA53008",
+    "lat": -3.81243369,
+    "lon": -79.51436751,
+    "link": "https://www.google.com/maps?q=-3.81243369,-79.51436751",
+    "image": "https://www.google.com/maps?q=-3.81243369,-79.51436751",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA53008",
+    "codigo": "LLOJA53008",
+    "lat": -3.79513746,
+    "lon": -79.52077169,
+    "link": "https://www.google.com/maps?q=-3.79513746,-79.52077169",
+    "image": "https://www.google.com/maps?q=-3.79513746,-79.52077169",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA53012",
+    "codigo": "LLOJA53012",
+    "lat": -3.87347975,
+    "lon": -79.42654942,
+    "link": "https://www.google.com/maps?q=-3.87347975,-79.42654942",
+    "image": "https://www.google.com/maps?q=-3.87347975,-79.42654942",
+    "capa_rod": "Asfaltico",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA53012",
+    "codigo": "LLOJA53012",
+    "lat": -3.8803553,
+    "lon": -79.41785687,
+    "link": "https://www.google.com/maps?q=-3.8803553,-79.41785687",
+    "image": "https://www.google.com/maps?q=-3.8803553,-79.41785687",
+    "capa_rod": "Asfaltico",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA53006",
+    "codigo": "LLOJA53006",
+    "lat": -3.80620357,
+    "lon": -79.40667796,
+    "link": "https://www.google.com/maps?q=-3.80620357,-79.40667796",
+    "image": "https://www.google.com/maps?q=-3.80620357,-79.40667796",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA53006",
+    "codigo": "LLOJA53006",
+    "lat": -3.80653007,
+    "lon": -79.40695143,
+    "link": "https://www.google.com/maps?q=-3.80653007,-79.40695143",
+    "image": "https://www.google.com/maps?q=-3.80653007,-79.40695143",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA53006",
+    "codigo": "LLOJA53006",
+    "lat": -3.81355791,
+    "lon": -79.40745017,
+    "link": "https://www.google.com/maps?q=-3.81355791,-79.40745017",
+    "image": "https://www.google.com/maps?q=-3.81355791,-79.40745017",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA53006",
+    "codigo": "LLOJA53006",
+    "lat": -3.81387292,
+    "lon": -79.40776926,
+    "link": "https://www.google.com/maps?q=-3.81387292,-79.40776926",
+    "image": "https://www.google.com/maps?q=-3.81387292,-79.40776926",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA53006",
+    "codigo": "LLOJA53006",
+    "lat": -3.81857544,
+    "lon": -79.40728682,
+    "link": "https://www.google.com/maps?q=-3.81857544,-79.40728682",
+    "image": "https://www.google.com/maps?q=-3.81857544,-79.40728682",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA53006",
+    "codigo": "LLOJA53006",
+    "lat": -3.8188705,
+    "lon": -79.4102701,
+    "link": "https://www.google.com/maps?q=-3.8188705,-79.4102701",
+    "image": "https://www.google.com/maps?q=-3.8188705,-79.4102701",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA53006",
+    "codigo": "LLOJA53006",
+    "lat": -3.82185756,
+    "lon": -79.41179576,
+    "link": "https://www.google.com/maps?q=-3.82185756,-79.41179576",
+    "image": "https://www.google.com/maps?q=-3.82185756,-79.41179576",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA53006",
+    "codigo": "LLOJA53006",
+    "lat": -3.8220364,
+    "lon": -79.41195752,
+    "link": "https://www.google.com/maps?q=-3.8220364,-79.41195752",
+    "image": "https://www.google.com/maps?q=-3.8220364,-79.41195752",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA53006",
+    "codigo": "LLOJA53006",
+    "lat": -3.82457029,
+    "lon": -79.41759926,
+    "link": "https://www.google.com/maps?q=-3.82457029,-79.41759926",
+    "image": "https://www.google.com/maps?q=-3.82457029,-79.41759926",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA53009",
+    "codigo": "LLOJA53009",
+    "lat": -3.8387827,
+    "lon": -79.42467516,
+    "link": "https://www.google.com/maps?q=-3.8387827,-79.42467516",
+    "image": "https://www.google.com/maps?q=-3.8387827,-79.42467516",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA53009",
+    "codigo": "LLOJA53009",
+    "lat": -3.83888865,
+    "lon": -79.42482843,
+    "link": "https://www.google.com/maps?q=-3.83888865,-79.42482843",
+    "image": "https://www.google.com/maps?q=-3.83888865,-79.42482843",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA53012",
+    "codigo": "LLOJA53012",
+    "lat": -3.84776326,
+    "lon": -79.42654057,
+    "link": "https://www.google.com/maps?q=-3.84776326,-79.42654057",
+    "image": "https://www.google.com/maps?q=-3.84776326,-79.42654057",
+    "capa_rod": "Asfaltico",
+    "severidad": "Baja",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA53012",
+    "codigo": "LLOJA53012",
+    "lat": -3.84942239,
+    "lon": -79.42757682,
+    "link": "https://www.google.com/maps?q=-3.84942239,-79.42757682",
+    "image": "https://www.google.com/maps?q=-3.84942239,-79.42757682",
+    "capa_rod": "Asfaltico",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA53012",
+    "codigo": "LLOJA53012",
+    "lat": -3.87041728,
+    "lon": -79.43090502,
+    "link": "https://www.google.com/maps?q=-3.87041728,-79.43090502",
+    "image": "https://www.google.com/maps?q=-3.87041728,-79.43090502",
+    "capa_rod": "Asfaltico",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA53012",
+    "codigo": "LLOJA53012",
+    "lat": -3.87549213,
+    "lon": -79.42817058,
+    "link": "https://www.google.com/maps?q=-3.87549213,-79.42817058",
+    "image": "https://www.google.com/maps?q=-3.87549213,-79.42817058",
+    "capa_rod": "Asfaltico",
+    "severidad": "Media",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52004",
+    "codigo": "LLOJA52004",
+    "lat": -3.86224466,
+    "lon": -79.33229371,
+    "link": "https://www.google.com/maps?q=-3.86224466,-79.33229371",
+    "image": "https://www.google.com/maps?q=-3.86224466,-79.33229371",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52003",
+    "codigo": "LLOJA52003",
+    "lat": -3.86556296,
+    "lon": -79.32877873,
+    "link": "https://www.google.com/maps?q=-3.86556296,-79.32877873",
+    "image": "https://www.google.com/maps?q=-3.86556296,-79.32877873",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52004",
+    "codigo": "LLOJA52004",
+    "lat": -3.86570885,
+    "lon": -79.32890734,
+    "link": "https://www.google.com/maps?q=-3.86570885,-79.32890734",
+    "image": "https://www.google.com/maps?q=-3.86570885,-79.32890734",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52006",
+    "codigo": "LLOJA52006",
+    "lat": -3.85726175,
+    "lon": -79.33435551,
+    "link": "https://www.google.com/maps?q=-3.85726175,-79.33435551",
+    "image": "https://www.google.com/maps?q=-3.85726175,-79.33435551",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52006",
+    "codigo": "LLOJA52006",
+    "lat": -3.8568614,
+    "lon": -79.3342638,
+    "link": "https://www.google.com/maps?q=-3.8568614,-79.3342638",
+    "image": "https://www.google.com/maps?q=-3.8568614,-79.3342638",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52006",
+    "codigo": "LLOJA52006",
+    "lat": -3.85604188,
+    "lon": -79.33247135,
+    "link": "https://www.google.com/maps?q=-3.85604188,-79.33247135",
+    "image": "https://www.google.com/maps?q=-3.85604188,-79.33247135",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52006",
+    "codigo": "LLOJA52006",
+    "lat": -3.85285926,
+    "lon": -79.3283359,
+    "link": "https://www.google.com/maps?q=-3.85285926,-79.3283359",
+    "image": "https://www.google.com/maps?q=-3.85285926,-79.3283359",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52006",
+    "codigo": "LLOJA52006",
+    "lat": -3.85173275,
+    "lon": -79.32851948,
+    "link": "https://www.google.com/maps?q=-3.85173275,-79.32851948",
+    "image": "https://www.google.com/maps?q=-3.85173275,-79.32851948",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52006",
+    "codigo": "LLOJA52006",
+    "lat": -3.84714647,
+    "lon": -79.32725014,
+    "link": "https://www.google.com/maps?q=-3.84714647,-79.32725014",
+    "image": "https://www.google.com/maps?q=-3.84714647,-79.32725014",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52006",
+    "codigo": "LLOJA52006",
+    "lat": -3.84613539,
+    "lon": -79.32724452,
+    "link": "https://www.google.com/maps?q=-3.84613539,-79.32724452",
+    "image": "https://www.google.com/maps?q=-3.84613539,-79.32724452",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52006",
+    "codigo": "LLOJA52006",
+    "lat": -3.84542164,
+    "lon": -79.32824708,
+    "link": "https://www.google.com/maps?q=-3.84542164,-79.32824708",
+    "image": "https://www.google.com/maps?q=-3.84542164,-79.32824708",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52006",
+    "codigo": "LLOJA52006",
+    "lat": -3.8468938,
+    "lon": -79.33090455,
+    "link": "https://www.google.com/maps?q=-3.8468938,-79.33090455",
+    "image": "https://www.google.com/maps?q=-3.8468938,-79.33090455",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA51001",
+    "codigo": "LLOJA51001",
+    "lat": -3.86186261,
+    "lon": -79.33733416,
+    "link": "https://www.google.com/maps?q=-3.86186261,-79.33733416",
+    "image": "https://www.google.com/maps?q=-3.86186261,-79.33733416",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA51001",
+    "codigo": "LLOJA51001",
+    "lat": -3.86336196,
+    "lon": -79.33680515,
+    "link": "https://www.google.com/maps?q=-3.86336196,-79.33680515",
+    "image": "https://www.google.com/maps?q=-3.86336196,-79.33680515",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA51001",
+    "codigo": "LLOJA51001",
+    "lat": -3.86487285,
+    "lon": -79.33641005,
+    "link": "https://www.google.com/maps?q=-3.86487285,-79.33641005",
+    "image": "https://www.google.com/maps?q=-3.86487285,-79.33641005",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA51001",
+    "codigo": "LLOJA51001",
+    "lat": -3.86565688,
+    "lon": -79.33607645,
+    "link": "https://www.google.com/maps?q=-3.86565688,-79.33607645",
+    "image": "https://www.google.com/maps?q=-3.86565688,-79.33607645",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA51001",
+    "codigo": "LLOJA51001",
+    "lat": -3.86654365,
+    "lon": -79.33625056,
+    "link": "https://www.google.com/maps?q=-3.86654365,-79.33625056",
+    "image": "https://www.google.com/maps?q=-3.86654365,-79.33625056",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA51001",
+    "codigo": "LLOJA51001",
+    "lat": -3.86737113,
+    "lon": -79.33633228,
+    "link": "https://www.google.com/maps?q=-3.86737113,-79.33633228",
+    "image": "https://www.google.com/maps?q=-3.86737113,-79.33633228",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52006",
+    "codigo": "LLOJA52006",
+    "lat": -3.84714628,
+    "lon": -79.3272503,
+    "link": "https://www.google.com/maps?q=-3.84714628,-79.3272503",
+    "image": "https://www.google.com/maps?q=-3.84714628,-79.3272503",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52011",
+    "codigo": "LLOJA52011",
+    "lat": -3.855971,
+    "lon": -79.35334734,
+    "link": "https://www.google.com/maps?q=-3.855971,-79.35334734",
+    "image": "https://www.google.com/maps?q=-3.855971,-79.35334734",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52011",
+    "codigo": "LLOJA52011",
+    "lat": -3.8546731,
+    "lon": -79.355161,
+    "link": "https://www.google.com/maps?q=-3.8546731,-79.355161",
+    "image": "https://www.google.com/maps?q=-3.8546731,-79.355161",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA51001",
+    "codigo": "LLOJA51001",
+    "lat": -3.86264585,
+    "lon": -79.33724903,
+    "link": "https://www.google.com/maps?q=-3.86264585,-79.33724903",
+    "image": "https://www.google.com/maps?q=-3.86264585,-79.33724903",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52011",
+    "codigo": "LLOJA52011",
+    "lat": -3.85601714,
+    "lon": -79.35326836,
+    "link": "https://www.google.com/maps?q=-3.85601714,-79.35326836",
+    "image": "https://www.google.com/maps?q=-3.85601714,-79.35326836",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52011",
+    "codigo": "LLOJA52011",
+    "lat": -3.85463079,
+    "lon": -79.35514441,
+    "link": "https://www.google.com/maps?q=-3.85463079,-79.35514441",
+    "image": "https://www.google.com/maps?q=-3.85463079,-79.35514441",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52011",
+    "codigo": "LLOJA52011",
+    "lat": -3.85129344,
+    "lon": -79.35774884,
+    "link": "https://www.google.com/maps?q=-3.85129344,-79.35774884",
+    "image": "https://www.google.com/maps?q=-3.85129344,-79.35774884",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52011",
+    "codigo": "LLOJA52011",
+    "lat": -3.85210425,
+    "lon": -79.36298933,
+    "link": "https://www.google.com/maps?q=-3.85210425,-79.36298933",
+    "image": "https://www.google.com/maps?q=-3.85210425,-79.36298933",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52011",
+    "codigo": "LLOJA52011",
+    "lat": -3.85132064,
+    "lon": -79.36287528,
+    "link": "https://www.google.com/maps?q=-3.85132064,-79.36287528",
+    "image": "https://www.google.com/maps?q=-3.85132064,-79.36287528",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52011",
+    "codigo": "LLOJA52011",
+    "lat": -3.85391151,
+    "lon": -79.365745,
+    "link": "https://www.google.com/maps?q=-3.85391151,-79.365745",
+    "image": "https://www.google.com/maps?q=-3.85391151,-79.365745",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52011",
+    "codigo": "LLOJA52011",
+    "lat": -3.8517906,
+    "lon": -79.3683069,
+    "link": "https://www.google.com/maps?q=-3.8517906,-79.3683069",
+    "image": "https://www.google.com/maps?q=-3.8517906,-79.3683069",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52011",
+    "codigo": "LLOJA52011",
+    "lat": -3.84746593,
+    "lon": -79.36879355,
+    "link": "https://www.google.com/maps?q=-3.84746593,-79.36879355",
+    "image": "https://www.google.com/maps?q=-3.84746593,-79.36879355",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52011",
+    "codigo": "LLOJA52011",
+    "lat": -3.84818455,
+    "lon": -79.37321025,
+    "link": "https://www.google.com/maps?q=-3.84818455,-79.37321025",
+    "image": "https://www.google.com/maps?q=-3.84818455,-79.37321025",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52011",
+    "codigo": "LLOJA52011",
+    "lat": -3.85342054,
+    "lon": -79.37984664,
+    "link": "https://www.google.com/maps?q=-3.85342054,-79.37984664",
+    "image": "https://www.google.com/maps?q=-3.85342054,-79.37984664",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52011",
+    "codigo": "LLOJA52011",
+    "lat": -3.85433015,
+    "lon": -79.38036386,
+    "link": "https://www.google.com/maps?q=-3.85433015,-79.38036386",
+    "image": "https://www.google.com/maps?q=-3.85433015,-79.38036386",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52011",
+    "codigo": "LLOJA52011",
+    "lat": -3.85364908,
+    "lon": -79.38296917,
+    "link": "https://www.google.com/maps?q=-3.85364908,-79.38296917",
+    "image": "https://www.google.com/maps?q=-3.85364908,-79.38296917",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52011",
+    "codigo": "LLOJA52011",
+    "lat": -3.85364675,
+    "lon": -79.38319533,
+    "link": "https://www.google.com/maps?q=-3.85364675,-79.38319533",
+    "image": "https://www.google.com/maps?q=-3.85364675,-79.38319533",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52011",
+    "codigo": "LLOJA52011",
+    "lat": -3.85371625,
+    "lon": -79.38348142,
+    "link": "https://www.google.com/maps?q=-3.85371625,-79.38348142",
+    "image": "https://www.google.com/maps?q=-3.85371625,-79.38348142",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52011",
+    "codigo": "LLOJA52011",
+    "lat": -3.8549913,
+    "lon": -79.38591701,
+    "link": "https://www.google.com/maps?q=-3.8549913,-79.38591701",
+    "image": "https://www.google.com/maps?q=-3.8549913,-79.38591701",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52012",
+    "codigo": "LLOJA52012",
+    "lat": -3.85669931,
+    "lon": -79.38025264,
+    "link": "https://www.google.com/maps?q=-3.85669931,-79.38025264",
+    "image": "https://www.google.com/maps?q=-3.85669931,-79.38025264",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52012",
+    "codigo": "LLOJA52012",
+    "lat": -3.85546204,
+    "lon": -79.37926336,
+    "link": "https://www.google.com/maps?q=-3.85546204,-79.37926336",
+    "image": "https://www.google.com/maps?q=-3.85546204,-79.37926336",
+    "capa_rod": "Suelo Natural",
+    "severidad": "Media",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52012",
+    "codigo": "LLOJA52012",
+    "lat": -3.85698511,
+    "lon": -79.3729373,
+    "link": "https://www.google.com/maps?q=-3.85698511,-79.3729373",
+    "image": "https://www.google.com/maps?q=-3.85698511,-79.3729373",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52010",
+    "codigo": "LLOJA52010",
+    "lat": -3.85829695,
+    "lon": -79.35900948,
+    "link": "https://www.google.com/maps?q=-3.85829695,-79.35900948",
+    "image": "https://www.google.com/maps?q=-3.85829695,-79.35900948",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52010",
+    "codigo": "LLOJA52010",
+    "lat": -3.86120728,
+    "lon": -79.35824122,
+    "link": "https://www.google.com/maps?q=-3.86120728,-79.35824122",
+    "image": "https://www.google.com/maps?q=-3.86120728,-79.35824122",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52010",
+    "codigo": "LLOJA52010",
+    "lat": -3.85974855,
+    "lon": -79.35938099,
+    "link": "https://www.google.com/maps?q=-3.85974855,-79.35938099",
+    "image": "https://www.google.com/maps?q=-3.85974855,-79.35938099",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52008",
+    "codigo": "LLOJA52008",
+    "lat": -3.86854902,
+    "lon": -79.35621372,
+    "link": "https://www.google.com/maps?q=-3.86854902,-79.35621372",
+    "image": "https://www.google.com/maps?q=-3.86854902,-79.35621372",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52008",
+    "codigo": "LLOJA52008",
+    "lat": -3.86875102,
+    "lon": -79.35769097,
+    "link": "https://www.google.com/maps?q=-3.86875102,-79.35769097",
+    "image": "https://www.google.com/maps?q=-3.86875102,-79.35769097",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52008",
+    "codigo": "LLOJA52008",
+    "lat": -3.87033564,
+    "lon": -79.3592299,
+    "link": "https://www.google.com/maps?q=-3.87033564,-79.3592299",
+    "image": "https://www.google.com/maps?q=-3.87033564,-79.3592299",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52008",
+    "codigo": "LLOJA52008",
+    "lat": -3.87286079,
+    "lon": -79.36431125,
+    "link": "https://www.google.com/maps?q=-3.87286079,-79.36431125",
+    "image": "https://www.google.com/maps?q=-3.87286079,-79.36431125",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52008",
+    "codigo": "LLOJA52008",
+    "lat": -3.87406979,
+    "lon": -79.36508465,
+    "link": "https://www.google.com/maps?q=-3.87406979,-79.36508465",
+    "image": "https://www.google.com/maps?q=-3.87406979,-79.36508465",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52008",
+    "codigo": "LLOJA52008",
+    "lat": -3.87444006,
+    "lon": -79.3653691,
+    "link": "https://www.google.com/maps?q=-3.87444006,-79.3653691",
+    "image": "https://www.google.com/maps?q=-3.87444006,-79.3653691",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52008",
+    "codigo": "LLOJA52008",
+    "lat": -3.8644745,
+    "lon": -79.35095411,
+    "link": "https://www.google.com/maps?q=-3.8644745,-79.35095411",
+    "image": "https://www.google.com/maps?q=-3.8644745,-79.35095411",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52007",
+    "codigo": "LLOJA52007",
+    "lat": -3.84454417,
+    "lon": -79.3495657,
+    "link": "https://www.google.com/maps?q=-3.84454417,-79.3495657",
+    "image": "https://www.google.com/maps?q=-3.84454417,-79.3495657",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52007",
+    "codigo": "LLOJA52007",
+    "lat": -3.84378327,
+    "lon": -79.34997438,
+    "link": "https://www.google.com/maps?q=-3.84378327,-79.34997438",
+    "image": "https://www.google.com/maps?q=-3.84378327,-79.34997438",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52007",
+    "codigo": "LLOJA52007",
+    "lat": -3.84108292,
+    "lon": -79.35078632,
+    "link": "https://www.google.com/maps?q=-3.84108292,-79.35078632",
+    "image": "https://www.google.com/maps?q=-3.84108292,-79.35078632",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52014",
+    "codigo": "LLOJA52014",
+    "lat": -3.83814594,
+    "lon": -79.34752927,
+    "link": "https://www.google.com/maps?q=-3.83814594,-79.34752927",
+    "image": "https://www.google.com/maps?q=-3.83814594,-79.34752927",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52014",
+    "codigo": "LLOJA52014",
+    "lat": -3.83703902,
+    "lon": -79.34838593,
+    "link": "https://www.google.com/maps?q=-3.83703902,-79.34838593",
+    "image": "https://www.google.com/maps?q=-3.83703902,-79.34838593",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52014",
+    "codigo": "LLOJA52014",
+    "lat": -3.83397555,
+    "lon": -79.34969474,
+    "link": "https://www.google.com/maps?q=-3.83397555,-79.34969474",
+    "image": "https://www.google.com/maps?q=-3.83397555,-79.34969474",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52031",
+    "codigo": "LLOJA52031",
+    "lat": -3.82659956,
+    "lon": -79.34702578,
+    "link": "https://www.google.com/maps?q=-3.82659956,-79.34702578",
+    "image": "https://www.google.com/maps?q=-3.82659956,-79.34702578",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52030",
+    "codigo": "LLOJA52030",
+    "lat": -3.82524965,
+    "lon": -79.34528274,
+    "link": "https://www.google.com/maps?q=-3.82524965,-79.34528274",
+    "image": "https://www.google.com/maps?q=-3.82524965,-79.34528274",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52034",
+    "codigo": "LLOJA52034",
+    "lat": -3.82878547,
+    "lon": -79.34542872,
+    "link": "https://www.google.com/maps?q=-3.82878547,-79.34542872",
+    "image": "https://www.google.com/maps?q=-3.82878547,-79.34542872",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52034",
+    "codigo": "LLOJA52034",
+    "lat": -3.82999935,
+    "lon": -79.34570562,
+    "link": "https://www.google.com/maps?q=-3.82999935,-79.34570562",
+    "image": "https://www.google.com/maps?q=-3.82999935,-79.34570562",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52035",
+    "codigo": "LLOJA52035",
+    "lat": -3.83828013,
+    "lon": -79.33519517,
+    "link": "https://www.google.com/maps?q=-3.83828013,-79.33519517",
+    "image": "https://www.google.com/maps?q=-3.83828013,-79.33519517",
+    "capa_rod": "Suelo Natural",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52037",
+    "codigo": "LLOJA52037",
+    "lat": -3.81990912,
+    "lon": -79.3414836,
+    "link": "https://www.google.com/maps?q=-3.81990912,-79.3414836",
+    "image": "https://www.google.com/maps?q=-3.81990912,-79.3414836",
+    "capa_rod": "Suelo Natural",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52037",
+    "codigo": "LLOJA52037",
+    "lat": -3.81400943,
+    "lon": -79.34084343,
+    "link": "https://www.google.com/maps?q=-3.81400943,-79.34084343",
+    "image": "https://www.google.com/maps?q=-3.81400943,-79.34084343",
+    "capa_rod": "Suelo Natural",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52033",
+    "codigo": "LLOJA52033",
+    "lat": -3.8120013,
+    "lon": -79.34715869,
+    "link": "https://www.google.com/maps?q=-3.8120013,-79.34715869",
+    "image": "https://www.google.com/maps?q=-3.8120013,-79.34715869",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52015",
+    "codigo": "LLOJA52015",
+    "lat": -3.82469411,
+    "lon": -79.35022486,
+    "link": "https://www.google.com/maps?q=-3.82469411,-79.35022486",
+    "image": "https://www.google.com/maps?q=-3.82469411,-79.35022486",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA52030",
+    "codigo": "LLOJA52030",
+    "lat": -3.82439211,
+    "lon": -79.34957824,
+    "link": "https://www.google.com/maps?q=-3.82439211,-79.34957824",
+    "image": "https://www.google.com/maps?q=-3.82439211,-79.34957824",
+    "capa_rod": "Suelo Natural",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA62003",
+    "codigo": "LLOJA62003",
+    "lat": -4.39161138,
+    "lon": -79.20336047,
+    "link": "https://www.google.com/maps?q=-4.39161138,-79.20336047",
+    "image": "https://www.google.com/maps?q=-4.39161138,-79.20336047",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA62003",
+    "codigo": "LLOJA62003",
+    "lat": -4.38619071,
+    "lon": -79.20312064,
+    "link": "https://www.google.com/maps?q=-4.38619071,-79.20312064",
+    "image": "https://www.google.com/maps?q=-4.38619071,-79.20312064",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA62003",
+    "codigo": "LLOJA62003",
+    "lat": -4.38434706,
+    "lon": -79.20349244,
+    "link": "https://www.google.com/maps?q=-4.38434706,-79.20349244",
+    "image": "https://www.google.com/maps?q=-4.38434706,-79.20349244",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA62003",
+    "codigo": "LLOJA62003",
+    "lat": -4.38113897,
+    "lon": -79.2052104,
+    "link": "https://www.google.com/maps?q=-4.38113897,-79.2052104",
+    "image": "https://www.google.com/maps?q=-4.38113897,-79.2052104",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA62003",
+    "codigo": "LLOJA62003",
+    "lat": -4.36817801,
+    "lon": -79.21365845,
+    "link": "https://www.google.com/maps?q=-4.36817801,-79.21365845",
+    "image": "https://www.google.com/maps?q=-4.36817801,-79.21365845",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA62003",
+    "codigo": "LLOJA62003",
+    "lat": -4.36228856,
+    "lon": -79.21530288,
+    "link": "https://www.google.com/maps?q=-4.36228856,-79.21530288",
+    "image": "https://www.google.com/maps?q=-4.36228856,-79.21530288",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA62003",
+    "codigo": "LLOJA62003",
+    "lat": -4.35961965,
+    "lon": -79.22092099,
+    "link": "https://www.google.com/maps?q=-4.35961965,-79.22092099",
+    "image": "https://www.google.com/maps?q=-4.35961965,-79.22092099",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA62003",
+    "codigo": "LLOJA62003",
+    "lat": -4.35128875,
+    "lon": -79.2202729,
+    "link": "https://www.google.com/maps?q=-4.35128875,-79.2202729",
+    "image": "https://www.google.com/maps?q=-4.35128875,-79.2202729",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA62006",
+    "codigo": "LLOJA62006",
+    "lat": -4.35090078,
+    "lon": -79.21195692,
+    "link": "https://www.google.com/maps?q=-4.35090078,-79.21195692",
+    "image": "https://www.google.com/maps?q=-4.35090078,-79.21195692",
+    "capa_rod": "Hormigón",
+    "severidad": "Baja",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA62001",
+    "codigo": "LLOJA62001",
+    "lat": -4.35739343,
+    "lon": -79.19230209,
+    "link": "https://www.google.com/maps?q=-4.35739343,-79.19230209",
+    "image": "https://www.google.com/maps?q=-4.35739343,-79.19230209",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA62001",
+    "codigo": "LLOJA62001",
+    "lat": -4.36159767,
+    "lon": -79.18149434,
+    "link": "https://www.google.com/maps?q=-4.36159767,-79.18149434",
+    "image": "https://www.google.com/maps?q=-4.36159767,-79.18149434",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA62002",
+    "codigo": "LLOJA62002",
+    "lat": -4.36758311,
+    "lon": -79.1740571,
+    "link": "https://www.google.com/maps?q=-4.36758311,-79.1740571",
+    "image": "https://www.google.com/maps?q=-4.36758311,-79.1740571",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA62002",
+    "codigo": "LLOJA62002",
+    "lat": -4.36812611,
+    "lon": -79.17438333,
+    "link": "https://www.google.com/maps?q=-4.36812611,-79.17438333",
+    "image": "https://www.google.com/maps?q=-4.36812611,-79.17438333",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA62002",
+    "codigo": "LLOJA62002",
+    "lat": -4.36933092,
+    "lon": -79.17371744,
+    "link": "https://www.google.com/maps?q=-4.36933092,-79.17371744",
+    "image": "https://www.google.com/maps?q=-4.36933092,-79.17371744",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA62002",
+    "codigo": "LLOJA62002",
+    "lat": -4.36933792,
+    "lon": -79.1672779,
+    "link": "https://www.google.com/maps?q=-4.36933792,-79.1672779",
+    "image": "https://www.google.com/maps?q=-4.36933792,-79.1672779",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA62002",
+    "codigo": "LLOJA62002",
+    "lat": -4.3695173,
+    "lon": -79.16712272,
+    "link": "https://www.google.com/maps?q=-4.3695173,-79.16712272",
+    "image": "https://www.google.com/maps?q=-4.3695173,-79.16712272",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA62002",
+    "codigo": "LLOJA62002",
+    "lat": -4.36946353,
+    "lon": -79.16065846,
+    "link": "https://www.google.com/maps?q=-4.36946353,-79.16065846",
+    "image": "https://www.google.com/maps?q=-4.36946353,-79.16065846",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA62002",
+    "codigo": "LLOJA62002",
+    "lat": -4.37781258,
+    "lon": -79.11214909,
+    "link": "https://www.google.com/maps?q=-4.37781258,-79.11214909",
+    "image": "https://www.google.com/maps?q=-4.37781258,-79.11214909",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA62002",
+    "codigo": "LLOJA62002",
+    "lat": -4.38175682,
+    "lon": -79.11412279,
+    "link": "https://www.google.com/maps?q=-4.38175682,-79.11412279",
+    "image": "https://www.google.com/maps?q=-4.38175682,-79.11412279",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA62002",
+    "codigo": "LLOJA62002",
+    "lat": -4.38657684,
+    "lon": -79.11921351,
+    "link": "https://www.google.com/maps?q=-4.38657684,-79.11921351",
+    "image": "https://www.google.com/maps?q=-4.38657684,-79.11921351",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA62002",
+    "codigo": "LLOJA62002",
+    "lat": -4.38649701,
+    "lon": -79.11915453,
+    "link": "https://www.google.com/maps?q=-4.38649701,-79.11915453",
+    "image": "https://www.google.com/maps?q=-4.38649701,-79.11915453",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA62002",
+    "codigo": "LLOJA62002",
+    "lat": -4.38595696,
+    "lon": -79.11839139,
+    "link": "https://www.google.com/maps?q=-4.38595696,-79.11839139",
+    "image": "https://www.google.com/maps?q=-4.38595696,-79.11839139",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA62002",
+    "codigo": "LLOJA62002",
+    "lat": -4.38583865,
+    "lon": -79.12135444,
+    "link": "https://www.google.com/maps?q=-4.38583865,-79.12135444",
+    "image": "https://www.google.com/maps?q=-4.38583865,-79.12135444",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA62002",
+    "codigo": "LLOJA62002",
+    "lat": -4.38460546,
+    "lon": -79.12669007,
+    "link": "https://www.google.com/maps?q=-4.38460546,-79.12669007",
+    "image": "https://www.google.com/maps?q=-4.38460546,-79.12669007",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA62002",
+    "codigo": "LLOJA62002",
+    "lat": -4.38401281,
+    "lon": -79.13051483,
+    "link": "https://www.google.com/maps?q=-4.38401281,-79.13051483",
+    "image": "https://www.google.com/maps?q=-4.38401281,-79.13051483",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "Si",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA62002",
+    "codigo": "LLOJA62002",
+    "lat": -4.38525294,
+    "lon": -79.13305845,
+    "link": "https://www.google.com/maps?q=-4.38525294,-79.13305845",
+    "image": "https://www.google.com/maps?q=-4.38525294,-79.13305845",
+    "capa_rod": "Lastrado",
+    "severidad": "Alta",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA62002",
+    "codigo": "LLOJA62002",
+    "lat": -4.38456565,
+    "lon": -79.13240965,
+    "link": "https://www.google.com/maps?q=-4.38456565,-79.13240965",
+    "image": "https://www.google.com/maps?q=-4.38456565,-79.13240965",
+    "capa_rod": "Lastrado",
+    "severidad": "Media",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  },
+  {
+    "name": "LLOJA62002",
+    "codigo": "LLOJA62002",
+    "lat": -4.38573104,
+    "lon": -79.13777059,
+    "link": "https://www.google.com/maps?q=-4.38573104,-79.13777059",
+    "image": "https://www.google.com/maps?q=-4.38573104,-79.13777059",
+    "capa_rod": "Lastrado",
+    "severidad": "Baja",
+    "drenaje": "No",
+    "info": [],
+    "roads": []
+  }
+];
+var savedCoords = [];
+var markers = [];
+var circles = [];
+var currentView = '3d';
+if (!defaultCoords || defaultCoords.length === 0) {
+    document.body.innerHTML = '<div style="padding:20px;font-family:Arial;">No hay puntos válidos en coordenadas.xlsx</div>';
+    throw new Error('defaultCoords vacío');
+}
+var map2d = L.map('map-2d', { zoomControl:true }).setView([defaultCoords[0].lat, defaultCoords[0].lon], 15);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution:'&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap</a>', maxZoom:19 }).addTo(map2d);
+var viewer = null;
+var viewerReady = false;
+var popup3D = document.getElementById('popup-3d');
+var PIN_SVG = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><circle cx="12" cy="12" r="9" fill="#f57c00" stroke="#fff" stroke-width="2.5"/></svg>');
+function initViewer() {
+    if (viewerReady) return;
+    viewerReady = true;
+    if (typeof Cesium === 'undefined') { console.error('Cesium no cargó. Revisa internet.'); return; }
+    try {
+        if (typeof Cesium.buildModuleUrl !== 'undefined' && typeof Cesium.buildModuleUrl.setBaseUrl === 'function') { Cesium.buildModuleUrl.setBaseUrl('https://unpkg.com/cesium@1.120.0/Build/Cesium/'); }
+        viewer = new Cesium.Viewer('map-3d', { terrainProvider:new Cesium.EllipsoidTerrainProvider(), baseLayerPicker:false, geocoder:false, homeButton:false, sceneModePicker:false, timeline:false, animation:false, navigationHelpButton:false, infoBox:false, fullscreenButton:false, selectionIndicator:false });
+        viewer.scene.skyAtmosphere.show = true;
+        viewer.scene.skyAtmosphere.brightnessShift = 2.0;
+        viewer.scene.skyAtmosphere.saturationShift = 0.8;
+        viewer.scene.globe.showGroundAtmosphere = true;
+        viewer.scene.globe.enableLighting = true;
+        viewer.scene.globe.dynamicAtmosphereLighting = true;
+        viewer.scene.globe.dynamicAtmosphereLightingFromSun = true;
+        viewer.scene.globe.atmosphereLightIntensity = 6.0;
+        viewer.scene.globe.atmosphereBrightnessShift = 1.2;
+        viewer.scene.fog.enabled = true;
+        viewer.scene.fog.density = 3.0e-5;
+        viewer.scene.postProcessStages.fxaa.enabled = true;
+        viewer.imageryLayers.removeAll();
+        var nightLayer = viewer.imageryLayers.addImageryProvider(new Cesium.UrlTemplateImageryProvider({ url:'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_CityLights_2012/default/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpeg', tilingScheme:new Cesium.WebMercatorTilingScheme(), maximumLevel:8, credit:'NASA VIIRS City Lights 2012' }));
+        var satLayer = viewer.imageryLayers.addImageryProvider(new Cesium.UrlTemplateImageryProvider({ url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', credit:'Esri World Imagery' }));
+        var osmLayer = viewer.imageryLayers.addImageryProvider(new Cesium.OpenStreetMapImageryProvider({ url:'https://tile.openstreetmap.org/' }));
+        satLayer.nightAlpha = 0.0;
+        osmLayer.nightAlpha = 0.0;
+        function blendLayers() {
+            var h = Cesium.Cartographic.fromCartesian(viewer.camera.position).height;
+            var t;
+            if (h > 500000) { t = 0.75; }
+            else if (h < 100000) { t = 0.0; }
+            else { t = 0.75 * (1 - (500000 - h) / 400000); }
+            satLayer.alpha = t;
+            osmLayer.alpha = 1 - t;
+            nightLayer.alpha = 1;
+            var close = h < 150000;
+            viewer.scene.skyAtmosphere.show = !close;
+            viewer.scene.globe.showGroundAtmosphere = !close;
+            viewer.scene.globe.enableLighting = !close;
+            viewer.scene.fog.enabled = !close;
+        }
+        viewer.camera.moveEnd.addEventListener(blendLayers);
+        blendLayers();
+        viewer.camera.flyTo({ destination: Cesium.Cartesian3.fromDegrees(defaultCoords[0].lon, defaultCoords[0].lat, 8000000), duration:0 });
+        viewer.screenSpaceEventHandler.setInputAction(function(click) { var picked = viewer.scene.pick(click.position); if (Cesium.defined(picked) && Cesium.defined(picked.id) && picked.id.coordIndex !== undefined) { goToCoord(savedCoords[picked.id.coordIndex]); } }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+        updateCesiumMarkers();
+    } catch(e) { console.error('[Cesium] Error al inicializar:', e.message, e.stack); viewer = null; viewerReady = false; }
+}
+function updateCesiumMarkers() {
+    if (!viewer) return;
+    viewer.entities.removeAll();
+    var INFLUENCIA = 200;
+    savedCoords.forEach(function(c, i) {
+        var pos = Cesium.Cartesian3.fromDegrees(c.lon, c.lat);
+        viewer.entities.add({ position:pos, ellipse:{ semiMinorAxis:INFLUENCIA, semiMajorAxis:INFLUENCIA, material:Cesium.Color.fromCssColorString('#1976d2').withAlpha(.25), outline:true, outlineColor:Cesium.Color.BLACK.withAlpha(.7), outlineWidth:2 } });
+        viewer.entities.add({ position:pos, billboard:{ image:PIN_SVG, width:24, height:24, verticalOrigin:Cesium.VerticalOrigin.CENTER }, name:c.name, coordIndex:i });
+    });
+}
+function switchView(view) {
+    currentView = view;
+    document.querySelectorAll('.view').forEach(function(v){ v.classList.remove('active'); });
+    document.querySelectorAll('#view-toggle button').forEach(function(b){ b.classList.remove('active'); });
+    document.getElementById('map-' + view).classList.add('active');
+    document.getElementById('btn-' + view).classList.add('active');
+    document.getElementById('sidebar').classList.toggle('view-3d-active', view === '3d');
+    if (view === '3d') { initViewer(); if (viewer) viewer.resize(); }
+    if (view === '2d') { map2d.invalidateSize(); }
+    popup3D.style.display = 'none';
+}
+function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); document.getElementById('sidebar-overlay').classList.toggle('open'); }
+function homeView() { if (viewer && currentView === '3d') { viewer.camera.flyTo({ destination:Cesium.Cartesian3.fromDegrees(defaultCoords[0].lon, defaultCoords[0].lat, 8000000), duration:1.5 }); } else { map2d.setView([defaultCoords[0].lat, defaultCoords[0].lon], 11); } }
+function coordsHash() { return JSON.stringify(defaultCoords); }
+function loadCoords() {
+    var stored = localStorage.getItem(COORDS_STORAGE_KEY);
+    var storedHash = localStorage.getItem(COORDS_HASH_KEY);
+    var currentHash = coordsHash();
+    if (stored && storedHash === currentHash) { savedCoords = JSON.parse(stored); }
+    else { savedCoords = JSON.parse(JSON.stringify(defaultCoords)); localStorage.setItem(COORDS_STORAGE_KEY, JSON.stringify(savedCoords)); localStorage.setItem(COORDS_HASH_KEY, currentHash); }
+    renderCoords(); updateMarkers();
+}
+function saveCoords() { localStorage.setItem(COORDS_STORAGE_KEY, JSON.stringify(savedCoords)); }
+function buildPopupHtml(c) {
+    var html = '<div class="popup-content">';
+    html += '<div style="text-align:center;margin-bottom:6px;"><b style="color:#f57c00;font-size:14px;">' + escapeHtml(c.name || '') + '</b></div>';
+    html += '<div style="text-align:center;color:#888;font-size:11px;margin-bottom:4px;">' + Number(c.lat).toFixed(5) + ', ' + Number(c.lon).toFixed(5) + '</div>';
+    html += '<div class="popup-field">';
+    html += '<b>Código:</b> ' + escapeHtml(c.codigo || 'Sin dato') + '<br>';
+    html += '<b>Capa de rodadura:</b> ' + escapeHtml(c.capa_rod || 'Sin dato') + '<br>';
+    html += '<b>Severidad:</b> ' + escapeHtml(c.severidad || 'Sin dato') + '<br>';
+    html += '<b>Drenaje:</b> ' + escapeHtml(c.drenaje || 'Sin dato') + '<br>';
+    if (c.link && c.link !== 'nan') { html += '<b>Link:</b> <a href="' + encodeURI(c.link) + '" target="_blank">Abrir enlace</a>'; }
+    html += '</div>';
+    if (c.roads && c.roads.length > 0) {
+        html += '<div style="margin-top:8px;font-size:11px;font-weight:700;color:#f57c00;">Inventario Vial (200m)</div>';
+        html += '<table class="info-table"><tr><th>Vía</th><th>Tipo</th><th>Superficie</th><th>Carriles</th><th>Vel</th><th>Long</th></tr>';
+        for (var i=0; i<c.roads.length; i++) { var r = c.roads[i]; html += '<tr><td>' + escapeHtml(r.via) + '</td><td>' + escapeHtml(r.tipo) + '</td><td>' + escapeHtml(r.superficie) + '</td><td>' + escapeHtml(r.carriles) + '</td><td>' + escapeHtml(r.vel_max) + '</td><td>' + Number(r.longitud || 0).toFixed(0) + 'm</td></tr>'; }
+        html += '</table>';
+    } else if (c.info && c.info.length > 0) {
+        html += '<table class="info-table"><tr><th>Categoría</th><th>Cant</th><th>Descripción</th></tr>';
+        for (var j=0; j<c.info.length; j++) { var q = c.info[j]; html += '<tr><td>' + escapeHtml(q.cat) + '</td><td>' + escapeHtml(q.qty) + '</td><td>' + escapeHtml(q.desc) + '</td></tr>'; }
+        html += '</table>';
+    }
+    html += '</div>';
+    return html;
+}
+function escapeHtml(v) { return String(v == null ? '' : v).replace(/[&<>'"]/g, function(ch){ return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]; }); }
+function goToCoord(c) {
+    if (window.innerWidth <= 768) { toggleSidebar(); }
+    map2d.setView([c.lat, c.lon], 16);
+    if (viewerReady && viewer) { viewer.camera.flyTo({ destination:Cesium.Cartesian3.fromDegrees(c.lon, c.lat, 1000), duration:1.5, orientation:{ heading:Cesium.Math.toRadians(0), pitch:Cesium.Math.toRadians(-90), roll:0 } }); }
+    var popupHtml = buildPopupHtml(c);
+    L.popup({ maxWidth:420, className:'custom-popup' }).setLatLng([c.lat, c.lon]).setContent(popupHtml).openOn(map2d);
+    if (currentView === '3d') showPopup3D(popupHtml);
+}
+function showPopup3D(html) {
+    popup3D.innerHTML = '<button onclick="this.parentElement.style.display=\'none\'" style="position:absolute;top:6px;right:8px;border:none;background:none;font-size:18px;cursor:pointer;color:#999;z-index:10;">×</button>' + html;
+    popup3D.style.display = 'block';
+}
+function renderCoords() {
+    var list = document.getElementById('coord-list'); list.innerHTML = '';
+    savedCoords.forEach(function(c, i) {
+        var item = document.createElement('div'); item.className = 'coord-item';
+        item.innerHTML = '<div class="dot"></div><div class="info"><div class="name">' + escapeHtml(c.name || '') + '</div><div class="coords">' + Number(c.lat).toFixed(5) + ', ' + Number(c.lon).toFixed(5) + '</div></div>';
+        item.addEventListener('click', function(){ goToCoord(c); }); list.appendChild(item);
+    });
+}
+function updateMarkers() {
+    markers.forEach(function(m){ map2d.removeLayer(m); }); circles.forEach(function(c){ map2d.removeLayer(c); }); markers = []; circles = [];
+    savedCoords.forEach(function(c) {
+        var popupHtml = buildPopupHtml(c);
+        var m = L.marker([c.lat, c.lon]).addTo(map2d).bindPopup(popupHtml, { maxWidth:420, className:'custom-popup' }); markers.push(m);
+        var circle = L.circle([c.lat, c.lon], { radius:200, color:'#1565c0', fillColor:'#1976d2', fillOpacity:.25, weight:2.5, opacity:.9, dashArray:'8, 5' }).addTo(map2d); circles.push(circle);
+    });
+    if (viewerReady) updateCesiumMarkers();
+}
+loadCoords(); initViewer(); if (viewer) viewer.resize();
+var audio = new Audio('https://www.scottbuckley.com.au/library/wp-content/uploads/2019/10/sb_filaments.mp3'); audio.loop = true; audio.volume = 0.06; var musicPlaying = false;
+function toggleInfo() { document.getElementById('info-panel').classList.toggle('open'); document.getElementById('view-toggle').classList.toggle('shifted'); }
+function toggleMusic() { if (musicPlaying) { audio.pause(); document.getElementById('music-btn').textContent = '🔇'; } else { audio.play().catch(function(){}); document.getElementById('music-btn').textContent = '🔊'; } musicPlaying = !musicPlaying; }
+audio.play().then(function(){ musicPlaying = true; document.getElementById('music-btn').textContent = '🔊'; }).catch(function(){ document.addEventListener('click', function firstClick(){ audio.play().then(function(){ musicPlaying = true; document.getElementById('music-btn').textContent = '🔊'; }).catch(function(){}); document.removeEventListener('click', firstClick); }, { once:true }); });
+</script>
+</body>
+</html>
