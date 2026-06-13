@@ -1,16 +1,9 @@
 {
-  "name": "Mapa de Puntos Críticos Viales",
-  "short_name": "Mapa Vial",
+  "name": "Mapa de Puntos Críticos Zona 4 Loja",
+  "short_name": "Mapa Puntos",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#1f6f43",
-  "orientation": "portrait",
-  "icons": [
-    {
-      "src": "icon.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    }
-  ]
+  "theme_color": "#f57c00",
+  "icons": []
 }
