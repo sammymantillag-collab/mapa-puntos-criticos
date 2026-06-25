@@ -1,0 +1,9 @@
+{
+  "name": "Mapa de Puntos Críticos Zona 4 Loja",
+  "short_name": "Mapa Puntos",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#f57c00",
+  "icons": []
+}
